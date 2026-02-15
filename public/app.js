@@ -45,12 +45,18 @@ const weekSpentEl = $("#weekSpent");
 const weekBudgetEl = $("#weekBudget");
 const weekRemainEl = $("#weekRemain");
 const weekProjEl = $("#weekProj");
+const weekIncomeEl = $("#weekIncome");
+const weekUnallocEl = $("#weekUnalloc");
+const weekNetEl = $("#weekNet");
 const weekBar = $("#weekBar");
 
 const monthSpentEl = $("#monthSpent");
 const monthBudgetEl = $("#monthBudget");
 const monthRemainEl = $("#monthRemain");
 const monthProjEl = $("#monthProj");
+const monthIncomeEl = $("#monthIncome");
+const monthUnallocEl = $("#monthUnalloc");
+const monthNetEl = $("#monthNet");
 const monthBar = $("#monthBar");
 
 const alertsEl = $("#alerts");
@@ -218,8 +224,17 @@ async function renderDashboard(transactions) {
     const weekSum = sumByRange(transactions, ws, we);
     const monthSum = sumByRange(transactions, ms, me);
 
+    const weekIncome = weekSum.income;
     const weekSpent = weekSum.expense;
+    const weekUnalloc = weekIncome - weekBudget;
+    const weekNet = weekIncome - weekSpent;
+    const weekSafeSpendRemaining = weekIncome - weekSpent;
+
+    const monthIncome = monthSum.income;
     const monthSpent = monthSum.expense;
+    const monthUnalloc = monthIncome - monthBudget;
+    const monthNet = monthIncome - monthSpent;
+    const monthSafeSpendRemaining = monthIncome - monthSpent;
 
     const daysElapsedWeek = Math.max(1, Math.floor((new Date().setHours(0, 0, 0, 0) - ws.getTime()) / (24 * 3600 * 1000)) + 1);
     const daysElapsedMonth = Math.max(1, new Date().getDate());
@@ -229,19 +244,37 @@ async function renderDashboard(transactions) {
 
     weekSpentEl.textContent = centsToDollars(weekSpent);
     weekBudgetEl.textContent = centsToDollars(weekBudget);
-    weekRemainEl.textContent = centsToDollars(Math.max(0, weekBudget - weekSpent));
+    weekRemainEl.textContent = centsToDollars(weekBudget - weekSpent);
     weekProjEl.textContent = centsToDollars(weekProj);
+    weekIncomeEl.textContent = centsToDollars(weekIncome);
+    weekUnallocEl.textContent = centsToDollars(weekUnalloc);
+    weekNetEl.textContent = centsToDollars(weekNet);
     weekBar.style.width = `${meterWidth(weekSpent, weekBudget)}%`;
 
     monthSpentEl.textContent = centsToDollars(monthSpent);
     monthBudgetEl.textContent = centsToDollars(monthBudget);
-    monthRemainEl.textContent = centsToDollars(Math.max(0, monthBudget - monthSpent));
+    monthRemainEl.textContent = centsToDollars(monthBudget - monthSpent);
     monthProjEl.textContent = centsToDollars(monthProj);
+    monthIncomeEl.textContent = centsToDollars(monthIncome);
+    monthUnallocEl.textContent = centsToDollars(monthUnalloc);
+    monthNetEl.textContent = centsToDollars(monthNet);
     monthBar.style.width = `${meterWidth(monthSpent, monthBudget)}%`;
 
     // Alerts
     alertsEl.innerHTML = "";
     const alerts = buildAlerts({ weekSpent, weekBudget, weekProj, monthSpent, monthBudget, monthProj });
+    if (weekIncome > 0 && weekBudget > weekIncome) {
+        alerts.push({ type: "warn", msg: `Budgets exceed income by ${centsToDollars(weekBudget - weekIncome)} this week.` });
+    }
+    if (weekSafeSpendRemaining < 0) {
+        alerts.push({ type: "bad", msg: `You've spent ${centsToDollars(Math.abs(weekSafeSpendRemaining))} more than you earned this week.` });
+    }
+    if (monthIncome > 0 && monthBudget > monthIncome) {
+        alerts.push({ type: "warn", msg: `Budgets exceed income by ${centsToDollars(monthBudget - monthIncome)} this month.` });
+    }
+    if (monthSafeSpendRemaining < 0) {
+        alerts.push({ type: "bad", msg: `You've spent ${centsToDollars(Math.abs(monthSafeSpendRemaining))} more than you earned this month.` });
+    }
     if (alerts.length === 0) alertsEl.appendChild(makeAlert("warn", "No alerts yet."));
     for (const a of alerts) alertsEl.appendChild(makeAlert(a.type, a.msg));
 
