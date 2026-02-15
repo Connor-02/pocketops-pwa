@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PocketOps</title>
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ffd6e7" />
+
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo">🐰</div>
+            <div>
+                <div class="title">PocketOps</div>
+                <div class="subtitle">Cute budgets • Weekly + Monthly • Offline-first</div>
+            </div>
+        </div>
+
+        <div class="top-actions">
+            <button class="btn ghost" id="installBtn" hidden>Install</button>
+            <button class="btn" id="seedBtn" title="Add example data">Seed</button>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <nav class="tabs">
+            <button class="tab active" data-tab="dash">Dashboard</button>
+            <button class="tab" data-tab="add">Add</button>
+            <button class="tab" data-tab="budgets">Budgets</button>
+            <button class="tab" data-tab="list">Transactions</button>
+            <button class="tab" data-tab="insights">Insights</button>
+        </nav>
+
+        <!-- DASHBOARD -->
+        <section class="panel tabpane" id="tab-dash">
+            <div class="grid2">
+                <div class="card">
+                    <div class="card-h">
+                        <h2>This Week</h2>
+                        <span class="pill" id="weekRange"></span>
+                    </div>
+
+                    <div class="big">
+                        <div>
+                            <div class="k">Spent</div>
+                            <div class="v" id="weekSpent">$0.00</div>
+                        </div>
+                        <div>
+                            <div class="k">Budget</div>
+                            <div class="v" id="weekBudget">$0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="meter">
+                        <div class="meter-bar" id="weekBar"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="mini">
+                            <div class="k">Remaining</div>
+                            <div class="v" id="weekRemain">$0.00</div>
+                        </div>
+                        <div class="mini">
+                            <div class="k">Projected</div>
+                            <div class="v" id="weekProj">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <h2>This Month</h2>
+                        <span class="pill" id="monthRange"></span>
+                    </div>
+
+                    <div class="big">
+                        <div>
+                            <div class="k">Spent</div>
+                            <div class="v" id="monthSpent">$0.00</div>
+                        </div>
+                        <div>
+                            <div class="k">Budget</div>
+                            <div class="v" id="monthBudget">$0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="meter">
+                        <div class="meter-bar" id="monthBar"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="mini">
+                            <div class="k">Remaining</div>
+                            <div class="v" id="monthRemain">$0.00</div>
+                        </div>
+                        <div class="mini">
+                            <div class="k">Projected</div>
+                            <div class="v" id="monthProj">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card soft">
+                <div class="card-h">
+                    <h3>Alerts</h3>
+                    <span class="muted">Your “ops worker” flags problems early</span>
+                </div>
+                <div id="alerts" class="alerts"></div>
+            </div>
+
+            <div class="card soft">
+                <div class="card-h">
+                    <h3>Top Categories</h3>
+                    <span class="muted">This week + this month</span>
+                </div>
+                <div class="grid2" id="topCats"></div>
+            </div>
+        </section>
+
+        <!-- ADD -->
+        <section class="panel tabpane hidden" id="tab-add">
+            <div class="card">
+                <div class="card-h">
+                    <h2>Add Transaction</h2>
+                    <span class="pill">Fast entry ✨</span>
+                </div>
+
+                <form id="txForm" class="form">
+                    <div class="form-row">
+                        <label>Type</label>
+                        <select id="txType" class="input">
+                            <option value="expense" selected>Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <label>Amount</label>
+                        <input id="txAmount" class="input" inputmode="decimal" placeholder="e.g. 12.50" required />
+                    </div>
+
+                    <div class="form-row">
+                        <label>Merchant</label>
+                        <input id="txMerchant" class="input" placeholder="e.g. Woolworths" required />
+                        <div class="hint">Tip: it learns your category choice per merchant.</div>
+                    </div>
+
+                    <div class="form-row">
+                        <label>Category</label>
+                        <select id="txCategory" class="input"></select>
+                    </div>
+
+                    <div class="form-row">
+                        <label>Date</label>
+                        <input id="txDate" class="input" type="date" required />
+                    </div>
+
+                    <div class="form-row">
+                        <label>Notes</label>
+                        <input id="txNotes" class="input" placeholder="optional" />
+                    </div>
+
+                    <button class="btn bigbtn" type="submit">Add 🧾</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- BUDGETS -->
+        <section class="panel tabpane hidden" id="tab-budgets">
+            <div class="card">
+                <div class="card-h">
+                    <h2>Budgets</h2>
+                    <span class="muted">Set weekly + monthly per category</span>
+                </div>
+
+                <div class="budget-head">
+                    <div class="muted">Category</div>
+                    <div class="muted">Weekly</div>
+                    <div class="muted">Monthly</div>
+                </div>
+
+                <div id="budgetList" class="budget-list"></div>
+
+                <div class="row right">
+                    <button class="btn" id="saveBudgetsBtn">Save Budgets 💾</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- LIST -->
+        <section class="panel tabpane hidden" id="tab-list">
+            <div class="card">
+                <div class="card-h">
+                    <h2>Transactions</h2>
+                    <div class="filters">
+                        <input id="searchTx" class="input" placeholder="Search merchant / category…" />
+                        <select id="rangeTx" class="input">
+                            <option value="week" selected>This week</option>
+                            <option value="month">This month</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="txList" class="tx-list"></div>
+            </div>
+        </section>
+
+        <!-- INSIGHTS -->
+        <section class="panel tabpane hidden" id="tab-insights">
+            <div class="card">
+                <div class="card-h">
+                    <h2>Insights</h2>
+                    <span class="muted">Your little finance worker 🐰📈</span>
+                </div>
+
+                <div class="grid2">
+                    <div class="card soft">
+                        <h3>Subscription candidates</h3>
+                        <div class="muted">Repeats with similar amounts</div>
+                        <div id="subs" class="listy"></div>
+                    </div>
+
+                    <div class="card soft">
+                        <h3>Spend spikes</h3>
+                        <div class="muted">This week vs 4-week average</div>
+                        <div id="spikes" class="listy"></div>
+                    </div>
+                </div>
+
+                <div class="card soft">
+                    <h3>Export</h3>
+                    <div class="muted">Download CSV of all transactions</div>
+                    <button class="btn" id="exportBtn">Export CSV</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <span class="muted">Offline-first • Data stays on your device</span>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+</body>
+
+</html>
