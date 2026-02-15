@@ -1,4 +1,4 @@
-const CACHE_NAME = "pocketops-v1";
+const CACHE_NAME = "pocketops-v2";
 const ASSETS = [
     "/",
     "/index.html",
