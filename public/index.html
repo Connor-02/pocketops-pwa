@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,13 +9,15 @@
     <meta name="theme-color" content="#ffd6e7" />
     <link rel="stylesheet" href="/styles.css" />
 </head>
+
 <body>
     <div id="pinGate" class="overlay hidden">
         <div class="card modal">
             <h2>PocketOps PIN</h2>
             <div class="muted">Enter your 4-digit PIN to unlock this device.</div>
             <form id="pinUnlockForm" class="form">
-                <input id="pinUnlockInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="0000" required />
+                <input id="pinUnlockInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}"
+                    placeholder="0000" required />
                 <button class="btn bigbtn" type="submit">Unlock</button>
             </form>
             <div id="pinUnlockError" class="muted danger hidden">Incorrect PIN.</div>
@@ -33,7 +36,8 @@
                 <h3>Choose pay cycle</h3>
                 <div class="chip-row">
                     <label class="chip"><input type="radio" name="payCycle" value="weekly"> Weekly</label>
-                    <label class="chip"><input type="radio" name="payCycle" value="fortnightly" checked> Fortnightly</label>
+                    <label class="chip"><input type="radio" name="payCycle" value="fortnightly" checked>
+                        Fortnightly</label>
                     <label class="chip"><input type="radio" name="payCycle" value="monthly"> Monthly</label>
                 </div>
             </div>
@@ -60,7 +64,8 @@
                 <h3>Suggested starter budgets</h3>
                 <div class="muted">Using your categories from step 3. Add budgets now or leave any field empty.</div>
                 <div id="obSuggestedBudgets" class="listy"></div>
-                <div class="hint">Use demo data adds sample budgets, transactions, and recurring bills so you can explore quickly.</div>
+                <div class="hint">Use demo data adds sample budgets, transactions, and recurring bills so you can
+                    explore quickly.</div>
             </div>
 
             <div class="row">
@@ -111,25 +116,46 @@
                     <span id="periodRange" class="pill"></span>
                 </div>
 
-                <div class="hero-remaining">
-                    <div class="k">Remaining</div>
+                <div class="hero-budgeted">
+                    <div class="k">Budgeted</div>
                     <div class="hero-v" id="periodRemain">$0.00</div>
                 </div>
 
-                <div class="meter"><div class="meter-bar" id="periodBar"></div></div>
-
-                <div class="row period-secondary">
-                    <div class="mini"><div class="k">Spent</div><div class="v" id="periodSpent">$0.00</div></div>
-                    <div class="mini"><div class="k">Budget</div><div class="v" id="periodBudget">$0.00</div></div>
-                    <div class="mini"><div class="k">Unallocated</div><div class="v" id="periodUnalloc">$0.00</div></div>
+                <div class="meter">
+                    <div class="meter-bar" id="periodBar"></div>
                 </div>
 
-                <button id="periodDetailsToggle" class="btn ghost details-toggle" type="button" aria-expanded="false">Show details ▼</button>
+                <div class="row period-secondary">
+                    <div class="mini">
+                        <div class="k">Spent</div>
+                        <div class="v" id="periodSpent">$0.00</div>
+                    </div>
+                    <div class="mini">
+                        <div class="k">Budget</div>
+                        <div class="v" id="periodBudget">$0.00</div>
+                    </div>
+                    <div class="mini">
+                        <div class="k">Unallocated</div>
+                        <div class="v" id="periodUnalloc">$0.00</div>
+                    </div>
+                </div>
+
+                <button id="periodDetailsToggle" class="btn ghost details-toggle" type="button"
+                    aria-expanded="false">Show details ▼</button>
                 <div id="periodDetailsPanel" class="details-panel">
                     <div class="row period-secondary">
-                        <div class="mini"><div class="k">Income</div><div class="v" id="periodIncome">$0.00</div></div>
-                        <div class="mini"><div class="k">Net</div><div class="v" id="periodNet">$0.00</div></div>
-                        <div class="mini"><div class="k">Projected</div><div class="v" id="periodProj">$0.00</div></div>
+                        <div class="mini">
+                            <div class="k">Income</div>
+                            <div class="v" id="periodIncome">$0.00</div>
+                        </div>
+                        <div class="mini">
+                            <div class="k">Net</div>
+                            <div class="v" id="periodNet">$0.00</div>
+                        </div>
+                        <div class="mini">
+                            <div class="k">Projected</div>
+                            <div class="v" id="periodProj">$0.00</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -137,8 +163,14 @@
             <div class="card soft">
                 <h3>Available to Spend</h3>
                 <div class="row period-secondary">
-                    <div class="mini"><div class="k">Bills Reserved</div><div class="v" id="availableBills">$0.00</div></div>
-                    <div class="mini"><div class="k">Discretionary Available</div><div class="v hero-mini" id="availableDiscretionary">$0.00</div></div>
+                    <div class="mini">
+                        <div class="k">Bills Reserved</div>
+                        <div class="v" id="availableBills">$0.00</div>
+                    </div>
+                    <div class="mini">
+                        <div class="k">Discretionary Available</div>
+                        <div class="v hero-mini" id="availableDiscretionary">$0.00</div>
+                    </div>
                 </div>
             </div>
 
@@ -157,7 +189,8 @@
                 <form id="txForm" class="form">
                     <div class="form-row">
                         <label>Amount</label>
-                        <input id="txAmount" class="input" inputmode="decimal" placeholder="e.g. 12.50" autofocus required />
+                        <input id="txAmount" class="input" inputmode="decimal" placeholder="e.g. 12.50" autofocus
+                            required />
                     </div>
                     <div class="form-row">
                         <label>Type</label>
@@ -317,7 +350,8 @@
                 <h3>Local PIN lock</h3>
                 <div class="muted">Stores only a local hash. If enabled, this device asks for PIN on app load.</div>
                 <form id="pinForm" class="row">
-                    <input id="pinInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" />
+                    <input id="pinInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}"
+                        placeholder="4-digit PIN" />
                     <button id="pinEnableBtn" class="btn" type="submit">Enable PIN</button>
                     <button id="pinDisableBtn" class="btn ghost" type="button">Disable PIN</button>
                 </form>
@@ -357,4 +391,5 @@
 
     <script type="module" src="/app.js"></script>
 </body>
+
 </html>
