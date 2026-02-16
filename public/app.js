@@ -46,18 +46,20 @@ let onboardingBudgetDraft = {};
 let undoAction = null;
 let toastTimer = null;
 let deferredPrompt = null;
+let categoryModalMode = "add";
+let categoryModalKey = "";
 
 const tabBtns = $$(".tab"), panes = $$(".tabpane");
 const installBtn = $("#installBtn"), resetOnboardingBtn = $("#resetOnboardingBtn"), offlineBadge = $("#offlineBadge"), quickAddBtn = $("#quickAddBtn");
 const txForm = $("#txForm"), txSubmitBtn = $("#txSubmitBtn"), txType = $("#txType"), txAmount = $("#txAmount"), txMerchant = $("#txMerchant"), txCategorySearch = $("#txCategorySearch"), txCategory = $("#txCategory"), recentCats = $("#recentCats"), txDate = $("#txDate"), txNotes = $("#txNotes"), txSplitToggle = $("#txSplitToggle"), splitFields = $("#splitFields"), txSplitType = $("#txSplitType"), txSplitAmount = $("#txSplitAmount"), txSplitPercent = $("#txSplitPercent");
 const weekRange = $("#weekRange"), monthRange = $("#monthRange"), weekSpentEl = $("#weekSpent"), weekBudgetEl = $("#weekBudget"), weekRemainEl = $("#weekRemain"), weekProjEl = $("#weekProj"), weekIncomeEl = $("#weekIncome"), weekUnallocEl = $("#weekUnalloc"), weekNetEl = $("#weekNet"), weekBar = $("#weekBar"), monthSpentEl = $("#monthSpent"), monthBudgetEl = $("#monthBudget"), monthRemainEl = $("#monthRemain"), monthProjEl = $("#monthProj"), monthIncomeEl = $("#monthIncome"), monthUnallocEl = $("#monthUnalloc"), monthNetEl = $("#monthNet"), monthBar = $("#monthBar"), billsReservedEl = $("#billsReserved"), discretionaryAvailableEl = $("#discretionaryAvailable"), alertsEl = $("#alerts"), insightAlertsEl = $("#insightAlerts");
 const budgetList = $("#budgetList"), saveBudgetsBtn = $("#saveBudgetsBtn"), billForm = $("#billForm"), billName = $("#billName"), billAmount = $("#billAmount"), billCycle = $("#billCycle"), billCategory = $("#billCategory"), billList = $("#billList");
-const categoryForm = $("#categoryForm"), categoryName = $("#categoryName"), categoryEmoji = $("#categoryEmoji"), customCategoryList = $("#customCategoryList");
+const addCategoryBtn = $("#addCategoryBtn"), editCategoryBtn = $("#editCategoryBtn"), deleteCategoryBtn = $("#deleteCategoryBtn");
 const txListEl = $("#txList"), searchTx = $("#searchTx"), rangeTx = $("#rangeTx"), splitsCard = $("#splitsCard"), coachCard = $("#coachCard");
 const subsEl = $("#subs"), spikesEl = $("#spikes"), exportBtn = $("#exportBtn"), exportJsonBtn = $("#exportJsonBtn"), importJsonInput = $("#importJsonInput"), importStatus = $("#importStatus");
 const pinGate = $("#pinGate"), pinUnlockForm = $("#pinUnlockForm"), pinUnlockInput = $("#pinUnlockInput"), pinUnlockError = $("#pinUnlockError"), pinForm = $("#pinForm"), pinInput = $("#pinInput"), pinDisableBtn = $("#pinDisableBtn");
 const onboardingEl = $("#onboarding"), onboardStepLabel = $("#onboardStepLabel"), obSteps = $$(".onboard-step"), obBack = $("#obBack"), obNext = $("#obNext"), obDemo = $("#obDemo"), obIncome = $("#obIncome"), obPayday = $("#obPayday"), obCategories = $("#obCategories"), obSuggestedBudgets = $("#obSuggestedBudgets");
-const obCategoryForm = $("#obCategoryForm"), obCategoryName = $("#obCategoryName"), obCategoryEmoji = $("#obCategoryEmoji");
+const categoryModal = $("#categoryModal"), categoryModalTitle = $("#categoryModalTitle"), categoryModalForm = $("#categoryModalForm"), categoryModalName = $("#categoryModalName"), categoryModalEmoji = $("#categoryModalEmoji"), categoryModalCancel = $("#categoryModalCancel");
 const toast = $("#toast"), toastMsg = $("#toastMsg"), toastUndo = $("#toastUndo");
 
 const setTab = (name) => {
@@ -82,6 +84,7 @@ const downloadBlob = (content, type, filename) => { const blob = new Blob([conte
 const shiftMonth = (iso, dlt) => { const d = new Date(`${iso}T00:00:00`); d.setMonth(d.getMonth() + dlt); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(Math.min(d.getDate(), 28)).padStart(2, "0")}`; };
 const slugify = (name) => String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const hasCategoryKey = (key) => categories.some(c => c.key === key);
+const isCustomCategory = (key) => (appState.customCategories || []).some(c => c.key === key);
 
 function showToast(msg, undoFn) {
   undoAction = undoFn || null;
@@ -108,6 +111,54 @@ function renderCategoryPickers() {
   });
 }
 
+async function deleteCategoryByKey(key) {
+  const custom = appState.customCategories || [];
+  const category = custom.find(c => c.key === key);
+  if (!category) {
+    alert("Only custom categories can be deleted.");
+    return;
+  }
+  if (!confirm(`Delete category "${category.label}"? Existing transactions/bills will move to Other.`)) return;
+
+  const nextCustom = custom.filter(x => x.key !== key);
+  const nextRecent = (appState.recentCategories || []).filter(x => x !== key);
+  appState = await saveAppState({ customCategories: nextCustom, recentCategories: nextRecent });
+
+  const nextBudgets = (budgets || []).filter(b => b.category !== key);
+  await saveBudgets(nextBudgets);
+
+  const txToMove = transactions.filter(t => t.category === key);
+  await Promise.all(txToMove.map(t => updateTransaction({ ...t, category: "other" })));
+
+  const billsToMove = bills.filter(b => b.category === key);
+  await Promise.all(billsToMove.map(b => saveBill({ ...b, category: "other" })));
+}
+
+function openCategoryModal(mode, key = "") {
+  categoryModalMode = mode;
+  categoryModalKey = key;
+  if (mode === "edit") {
+    const current = (appState.customCategories || []).find(c => c.key === key);
+    if (!current) {
+      alert("Only custom categories can be edited.");
+      return;
+    }
+    categoryModalTitle.textContent = "Edit category";
+    categoryModalName.value = current.label || "";
+    categoryModalEmoji.value = current.emoji || "✨";
+  } else {
+    categoryModalTitle.textContent = "Add category";
+    categoryModalName.value = "";
+    categoryModalEmoji.value = "✨";
+  }
+  categoryModal.classList.remove("hidden");
+  setTimeout(() => categoryModalName.focus(), 20);
+}
+
+function closeCategoryModal() {
+  categoryModal.classList.add("hidden");
+}
+
 txCategorySearch.addEventListener("input", () => {
   const q = txCategorySearch.value.trim().toLowerCase();
   txCategory.innerHTML = "";
@@ -115,6 +166,57 @@ txCategorySearch.addEventListener("input", () => {
     if (q && !`${c.key} ${c.label}`.toLowerCase().includes(q)) return;
     const o = document.createElement("option"); o.value = c.key; o.textContent = `${c.emoji} ${c.label}`; txCategory.appendChild(o);
   });
+});
+
+addCategoryBtn?.addEventListener("click", () => openCategoryModal("add"));
+editCategoryBtn?.addEventListener("click", () => {
+  const key = txCategory.value;
+  if (!isCustomCategory(key)) return alert("Select a custom category to edit.");
+  openCategoryModal("edit", key);
+});
+deleteCategoryBtn?.addEventListener("click", async () => {
+  const key = txCategory.value;
+  if (!isCustomCategory(key)) return alert("Select a custom category to delete.");
+  await deleteCategoryByKey(key);
+  await loadStateAndRender();
+  txCategory.value = "other";
+});
+
+categoryModalCancel?.addEventListener("click", closeCategoryModal);
+categoryModal?.addEventListener("click", (e) => {
+  if (e.target === categoryModal) closeCategoryModal();
+});
+categoryModalForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = (categoryModalName.value || "").trim();
+  if (!name) return alert("Category name cannot be empty.");
+  const emoji = (categoryModalEmoji.value || "").trim() || "✨";
+
+  if (categoryModalMode === "edit") {
+    if (!isCustomCategory(categoryModalKey)) return alert("Only custom categories can be edited.");
+    const nextCustom = (appState.customCategories || []).map(c => c.key === categoryModalKey ? { ...c, label: name, emoji } : c);
+    appState = await saveAppState({ customCategories: nextCustom });
+    closeCategoryModal();
+    showToast(`Category "${name}" updated.`, null);
+    await loadStateAndRender();
+    txCategory.value = categoryModalKey;
+    return;
+  }
+
+  const baseKey = slugify(name);
+  if (!baseKey) return alert("Please use letters or numbers in category name.");
+  let key = baseKey;
+  let i = 2;
+  while (hasCategoryKey(key)) {
+    key = `${baseKey}_${i}`;
+    i += 1;
+  }
+  const nextCustom = [...(appState.customCategories || []), { key, label: name, emoji }];
+  appState = await saveAppState({ customCategories: nextCustom });
+  closeCategoryModal();
+  showToast(`Category "${name}" added.`, null);
+  await loadStateAndRender();
+  txCategory.value = key;
 });
 
 txDate.value = todayISO();
@@ -217,82 +319,6 @@ function renderBills() {
   });
 }
 
-function renderCustomCategories() {
-  customCategoryList.innerHTML = "";
-  const custom = appState.customCategories || [];
-  if (!custom.length) {
-    customCategoryList.innerHTML = `<div class="muted">No custom categories.</div>`;
-    return;
-  }
-  custom.forEach(c => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <b>${c.emoji || "✨"} ${c.label}</b>
-      <div class="muted">Key: ${c.key}</div>
-      <div class="row">
-        <input class="input" data-edit-name="${c.key}" value="${c.label}" />
-        <input class="input" data-edit-emoji="${c.key}" value="${c.emoji || "✨"}" maxlength="2" />
-      </div>
-      <div class="row right">
-        <button class="btn" data-save-cat="${c.key}">Save</button>
-        <button class="btn ghost" data-del-cat="${c.key}">Delete</button>
-      </div>
-    `;
-    div.querySelector(`[data-save-cat="${c.key}"]`).addEventListener("click", async () => {
-      const nextName = (div.querySelector(`[data-edit-name="${c.key}"]`)?.value || "").trim();
-      const nextEmoji = (div.querySelector(`[data-edit-emoji="${c.key}"]`)?.value || "").trim() || "✨";
-      if (!nextName) return alert("Category name cannot be empty.");
-      const nextCustom = custom.map(x => x.key === c.key ? { ...x, label: nextName, emoji: nextEmoji } : x);
-      appState = await saveAppState({ customCategories: nextCustom });
-      showToast(`Category "${nextName}" updated.`, null);
-      await loadStateAndRender();
-    });
-    div.querySelector(`[data-del-cat="${c.key}"]`).addEventListener("click", async () => {
-      if (!confirm(`Delete category "${c.label}"? Existing transactions/bills will move to Other.`)) return;
-
-      const nextCustom = custom.filter(x => x.key !== c.key);
-      const nextRecent = (appState.recentCategories || []).filter(x => x !== c.key);
-      appState = await saveAppState({ customCategories: nextCustom, recentCategories: nextRecent });
-
-      const nextBudgets = (budgets || []).filter(b => b.category !== c.key);
-      await saveBudgets(nextBudgets);
-
-      const txToMove = transactions.filter(t => t.category === c.key);
-      await Promise.all(txToMove.map(t => updateTransaction({ ...t, category: "other" })));
-
-      const billsToMove = bills.filter(b => b.category === c.key);
-      await Promise.all(billsToMove.map(b => saveBill({ ...b, category: "other" })));
-
-      showToast(`Category "${c.label}" deleted.`, null);
-      await loadStateAndRender();
-    });
-    customCategoryList.appendChild(div);
-  });
-}
-
-categoryForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const name = categoryName.value.trim();
-  if (!name) return;
-  const baseKey = slugify(name);
-  if (!baseKey) return alert("Please use letters or numbers in category name.");
-
-  let key = baseKey;
-  let i = 2;
-  while (hasCategoryKey(key)) {
-    key = `${baseKey}_${i}`;
-    i += 1;
-  }
-
-  const emoji = (categoryEmoji.value || "").trim() || "✨";
-  const nextCustom = [...(appState.customCategories || []), { key, label: name, emoji }];
-  appState = await saveAppState({ customCategories: nextCustom });
-  categoryName.value = "";
-  categoryEmoji.value = "";
-  showToast(`Category "${name}" added.`, null);
-  await loadStateAndRender();
-});
 function txInRange(tx, mode) {
   if (mode === "all") return true;
   const now = new Date();
@@ -420,48 +446,13 @@ function renderOnboardingCategoryInputs() {
   obCategories.innerHTML = "";
   onboardingNames.forEach((cat, idx) => {
     const div = document.createElement("div"); div.className = "item";
-    div.innerHTML = `
-      <label>${cat.emoji || "?"} starter ${idx + 1}</label>
-      <div class="row">
-        <input class="input" data-ob-name="${cat.key}" value="${cat.label}" />
-        <input class="input" data-ob-emoji="${cat.key}" value="${cat.emoji || "✨"}" maxlength="2" />
-        <button class="btn ghost" type="button" data-ob-del="${cat.key}">Delete</button>
-      </div>
-    `;
+    div.innerHTML = `<label>${cat.emoji || "?"} starter ${idx + 1}</label><input class="input" data-ob-name="${cat.key}" value="${cat.label}" />`;
     obCategories.appendChild(div);
   });
   obCategories.querySelectorAll("input[data-ob-name]").forEach(inp => inp.addEventListener("input", () => {
     const key = inp.dataset.obName; onboardingNames = onboardingNames.map(c => c.key === key ? { ...c, label: inp.value.trim() || c.label } : c);
   }));
-  obCategories.querySelectorAll("input[data-ob-emoji]").forEach(inp => inp.addEventListener("input", () => {
-    const key = inp.dataset.obEmoji; onboardingNames = onboardingNames.map(c => c.key === key ? { ...c, emoji: inp.value.trim() || "✨" } : c);
-  }));
-  obCategories.querySelectorAll("button[data-ob-del]").forEach(btn => btn.addEventListener("click", () => {
-    const key = btn.dataset.obDel;
-    if (onboardingNames.length <= 1) return alert("Keep at least one category.");
-    onboardingNames = onboardingNames.filter(c => c.key !== key);
-    delete onboardingBudgetDraft[key];
-    renderOnboardingCategoryInputs();
-  }));
 }
-
-obCategoryForm?.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const name = (obCategoryName.value || "").trim();
-  if (!name) return;
-  const base = slugify(name);
-  if (!base) return alert("Please use letters or numbers in category name.");
-  let key = base;
-  let i = 2;
-  while (onboardingNames.some(c => c.key === key)) {
-    key = `${base}_${i}`;
-    i += 1;
-  }
-  onboardingNames.push({ key, label: name, emoji: (obCategoryEmoji.value || "").trim() || "✨" });
-  obCategoryName.value = "";
-  obCategoryEmoji.value = "";
-  renderOnboardingCategoryInputs();
-});
 
 function updateOnboardingStep() {
   onboardStepLabel.textContent = `Step ${onboardingStep} of 4`;
@@ -560,7 +551,6 @@ async function loadStateAndRender() {
   renderCategoryPickers();
   await renderBudgets();
   renderBills();
-  renderCustomCategories();
   renderDashboard();
   renderTransactions();
   renderInsights();

@@ -52,12 +52,7 @@
 
             <div class="onboard-step hidden" data-step="3">
                 <h3>Starter categories</h3>
-                <div class="muted">Edit, add, or delete categories before setting budgets.</div>
-                <form id="obCategoryForm" class="row">
-                    <input id="obCategoryName" class="input" placeholder="New category name" />
-                    <input id="obCategoryEmoji" class="input" placeholder="Emoji" maxlength="2" />
-                    <button class="btn" type="submit">Add category</button>
-                </form>
+                <div class="muted">Edit names if you want, then continue.</div>
                 <div id="obCategories" class="listy"></div>
             </div>
 
@@ -194,6 +189,11 @@
                     <div class="form-row">
                         <label>Category</label>
                         <select id="txCategory" class="input"></select>
+                        <div class="row">
+                            <button id="addCategoryBtn" class="btn ghost" type="button">Add category</button>
+                            <button id="editCategoryBtn" class="btn ghost" type="button">Edit selected</button>
+                            <button id="deleteCategoryBtn" class="btn ghost" type="button">Delete selected</button>
+                        </div>
                     </div>
                     <div class="form-row">
                         <label>Date</label>
@@ -264,18 +264,6 @@
                 <div id="billList" class="listy"></div>
             </div>
 
-            <div class="card">
-                <div class="card-h">
-                    <h2>Categories</h2>
-                    <span class="muted">Create or remove your custom categories</span>
-                </div>
-                <form id="categoryForm" class="grid2">
-                    <input id="categoryName" class="input" placeholder="Category name (e.g. Study Supplies)" required />
-                    <input id="categoryEmoji" class="input" placeholder="Emoji (optional, default ✨)" maxlength="2" />
-                    <button class="btn" type="submit">Add Category</button>
-                </form>
-                <div id="customCategoryList" class="listy"></div>
-            </div>
         </section>
 
         <section class="panel tabpane hidden" id="tab-list">
@@ -352,6 +340,26 @@
     <div id="toast" class="toast hidden">
         <span id="toastMsg"></span>
         <button id="toastUndo" class="btn ghost">Undo</button>
+    </div>
+
+    <div id="categoryModal" class="overlay hidden">
+        <div class="card modal">
+            <h3 id="categoryModalTitle">Edit category</h3>
+            <form id="categoryModalForm" class="form">
+                <div class="form-row">
+                    <label>Name</label>
+                    <input id="categoryModalName" class="input" required />
+                </div>
+                <div class="form-row">
+                    <label>Emoji</label>
+                    <input id="categoryModalEmoji" class="input" maxlength="2" placeholder="✨" />
+                </div>
+                <div class="row right">
+                    <button id="categoryModalCancel" class="btn ghost" type="button">Cancel</button>
+                    <button class="btn" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <footer class="footer">
