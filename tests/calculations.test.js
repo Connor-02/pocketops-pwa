@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
     dollarsToCents,
     calculateDashboardPeriod,
-    suggestedStarterBudgets
+    suggestedStarterBudgets,
+    scheduledIncomeForRange
 } from "../public/calculations.js";
 
 test("dollarsToCents parses safely to integer cents", () => {
@@ -39,4 +40,16 @@ test("dashboard period applies overspend to unallocated", () => {
     assert.equal(result.spent, 15000);
     assert.equal(result.unallocated, 85000);
     assert.equal(result.alerts.length, 1);
+});
+
+test("scheduled income is counted from last payday anchor", () => {
+    const start = new Date("2026-02-16T00:00:00"); // Monday
+    const end = new Date("2026-02-22T23:59:59");   // Sunday
+    const income = scheduledIncomeForRange(start, end, {
+        payCycle: "weekly",
+        incomePerCycleCents: 50000,
+        lastPaydayISO: "2026-02-13", // previous Friday
+        useScheduledIncome: true
+    });
+    assert.equal(income, 50000); // next Friday in this week
 });

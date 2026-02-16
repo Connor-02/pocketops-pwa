@@ -28,7 +28,9 @@ export const DEFAULT_APP_STATE = {
     onboardingCompleted: false,
     payCycle: "fortnightly",
     paydayISO: "",
+    lastPaydayISO: "",
     incomePerCycleCents: 0,
+    useScheduledIncome: false,
     recentCategories: [],
     customCategories: STARTER_CATEGORIES,
     suppressedSubscriptionKeys: [],
@@ -157,6 +159,47 @@ export function sumByRange(transactions, start, end) {
     return { income, expense, net: income - expense };
 }
 
+function shiftDateByCycle(date, cycle, dir = 1) {
+    const d = new Date(date);
+    if (cycle === "weekly") {
+        d.setDate(d.getDate() + (7 * dir));
+        return d;
+    }
+    if (cycle === "fortnightly") {
+        d.setDate(d.getDate() + (14 * dir));
+        return d;
+    }
+    d.setMonth(d.getMonth() + dir);
+    return d;
+}
+
+export function scheduledIncomeForRange(start, end, appState) {
+    const incomePerCycleCents = Number(appState?.incomePerCycleCents || 0);
+    const cycle = appState?.payCycle || "fortnightly";
+    const anchorISO = appState?.lastPaydayISO || appState?.paydayISO || "";
+    if (!appState?.useScheduledIncome) return 0;
+    if (!anchorISO || incomePerCycleCents <= 0) return 0;
+
+    const s = new Date(start);
+    const e = new Date(end);
+    s.setHours(0, 0, 0, 0);
+    e.setHours(23, 59, 59, 999);
+
+    let cursor = new Date(`${anchorISO}T00:00:00`);
+    if (Number.isNaN(cursor.getTime())) return 0;
+
+    // Move anchor near current period start.
+    while (cursor > s) cursor = shiftDateByCycle(cursor, cycle, -1);
+    while (shiftDateByCycle(cursor, cycle, 1) < s) cursor = shiftDateByCycle(cursor, cycle, 1);
+
+    let total = 0;
+    while (cursor <= e) {
+        if (cursor >= s) total += incomePerCycleCents;
+        cursor = shiftDateByCycle(cursor, cycle, 1);
+    }
+    return total;
+}
+
 export function expensesByCategory(transactions, start, end) {
     const s = start.getTime();
     const e = end.getTime();
@@ -226,6 +269,7 @@ export function calculateDashboardPeriod({
     const start = period === "week" ? startOfWeek(now) : startOfMonth(now);
     const end = period === "week" ? endOfWeek(now) : endOfMonth(now);
     const totals = sumByRange(transactions, start, end);
+    const scheduledIncome = scheduledIncomeForRange(start, end, appState);
     const spentByCategory = expensesByCategory(transactions, start, end);
     const { categoryMap, budgetTotal, billsReserved } = calculateReservationsForPeriod(
         budgets,
@@ -241,7 +285,7 @@ export function calculateDashboardPeriod({
     }
 
     const spent = totals.expense;
-    const income = totals.income;
+    const income = totals.income + scheduledIncome;
     const remaining = budgetTotal - spent;
     const totalDays = period === "week" ? 7 : daysInMonth(now);
     const elapsedDays = period === "week"
@@ -262,6 +306,7 @@ export function calculateDashboardPeriod({
         income,
         unallocated,
         net,
+        scheduledIncome,
         billsReserved,
         discretionaryAvailable,
         spentByCategory,

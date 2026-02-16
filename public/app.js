@@ -220,6 +220,7 @@ categoryModalForm?.addEventListener("submit", async (e) => {
 });
 
 txDate.value = todayISO();
+obPayday.value = todayISO();
 txMerchant.addEventListener("input", async () => { const key = merchantKeyFrom(txMerchant.value); if (!key) return; txCategory.value = await getMerchantCategory(key) || ruleBasedCategoryHint(txMerchant.value); });
 txSplitToggle.addEventListener("change", () => splitFields.classList.toggle("hidden", !txSplitToggle.checked));
 
@@ -506,12 +507,20 @@ async function seedDemoData() {
 async function completeOnboarding(useDemo) {
   const payCycle = document.querySelector('input[name="payCycle"]:checked')?.value || "fortnightly";
   const income = dollarsToCents(obIncome.value || "0") || 0;
-  const paydayISO = obPayday.value || "";
+  const paydayISO = obPayday.value || todayISO();
   // Read current visible inputs directly so the final typed value is always captured.
   obSuggestedBudgets.querySelectorAll("input[data-ob-budget]").forEach(inp => {
     onboardingBudgetDraft[inp.dataset.obBudget] = inp.value.trim();
   });
-  appState = await saveAppState({ onboardingCompleted: true, payCycle, paydayISO, incomePerCycleCents: income, customCategories: onboardingNames });
+  appState = await saveAppState({
+    onboardingCompleted: true,
+    payCycle,
+    paydayISO,
+    lastPaydayISO: paydayISO,
+    incomePerCycleCents: income,
+    useScheduledIncome: true,
+    customCategories: onboardingNames
+  });
   const suggested = suggestedStarterBudgets(income, payCycle, onboardingNames);
   const onboardingBudgets = suggested.map(row => {
     const typed = onboardingBudgetDraft[row.category];
@@ -519,7 +528,6 @@ async function completeOnboarding(useDemo) {
     return { ...row, cycleBudgetCents: typedCents };
   });
   await saveBudgets(onboardingBudgets);
-  if (income > 0) await addTransaction({ id: crypto.randomUUID(), type: "income", amountCents: income, merchant: "Income", merchantKey: "income", category: "other", date: paydayISO || todayISO(), notes: "Onboarding income", split: { enabled: false } });
   if (useDemo) await seedDemoData();
   onboardingEl.classList.add("hidden");
   await loadStateAndRender();
@@ -530,6 +538,7 @@ obNext.addEventListener("click", async () => {
   if (onboardingStep === 2) {
     const i = dollarsToCents(obIncome.value || "0");
     if (!Number.isInteger(i) || i < 0) return alert("Please enter a valid income value.");
+    if (!obPayday.value) return alert("Please select when you last got paid.");
   }
   if (onboardingStep < 4) { onboardingStep += 1; return updateOnboardingStep(); }
   await completeOnboarding(false);
