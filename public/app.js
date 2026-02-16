@@ -1,4 +1,4 @@
-import {
+ï»¿import {
     APP_SCHEMA_VERSION,
     STARTER_CATEGORIES,
     DEFAULT_APP_STATE,
@@ -42,6 +42,7 @@ let categories = getAllCategories(DEFAULT_APP_STATE.customCategories);
 let editingTxId = null;
 let onboardingStep = 1;
 let onboardingNames = STARTER_CATEGORIES.map(c => ({ ...c }));
+let onboardingBudgetDraft = {};
 let undoAction = null;
 let toastTimer = null;
 let deferredPrompt = null;
@@ -51,6 +52,7 @@ const installBtn = $("#installBtn"), resetOnboardingBtn = $("#resetOnboardingBtn
 const txForm = $("#txForm"), txSubmitBtn = $("#txSubmitBtn"), txType = $("#txType"), txAmount = $("#txAmount"), txMerchant = $("#txMerchant"), txCategorySearch = $("#txCategorySearch"), txCategory = $("#txCategory"), recentCats = $("#recentCats"), txDate = $("#txDate"), txNotes = $("#txNotes"), txSplitToggle = $("#txSplitToggle"), splitFields = $("#splitFields"), txSplitType = $("#txSplitType"), txSplitAmount = $("#txSplitAmount"), txSplitPercent = $("#txSplitPercent");
 const weekRange = $("#weekRange"), monthRange = $("#monthRange"), weekSpentEl = $("#weekSpent"), weekBudgetEl = $("#weekBudget"), weekRemainEl = $("#weekRemain"), weekProjEl = $("#weekProj"), weekIncomeEl = $("#weekIncome"), weekUnallocEl = $("#weekUnalloc"), weekNetEl = $("#weekNet"), weekBar = $("#weekBar"), monthSpentEl = $("#monthSpent"), monthBudgetEl = $("#monthBudget"), monthRemainEl = $("#monthRemain"), monthProjEl = $("#monthProj"), monthIncomeEl = $("#monthIncome"), monthUnallocEl = $("#monthUnalloc"), monthNetEl = $("#monthNet"), monthBar = $("#monthBar"), billsReservedEl = $("#billsReserved"), discretionaryAvailableEl = $("#discretionaryAvailable"), alertsEl = $("#alerts"), insightAlertsEl = $("#insightAlerts");
 const budgetList = $("#budgetList"), saveBudgetsBtn = $("#saveBudgetsBtn"), billForm = $("#billForm"), billName = $("#billName"), billAmount = $("#billAmount"), billCycle = $("#billCycle"), billCategory = $("#billCategory"), billList = $("#billList");
+const categoryForm = $("#categoryForm"), categoryName = $("#categoryName"), categoryEmoji = $("#categoryEmoji"), customCategoryList = $("#customCategoryList");
 const txListEl = $("#txList"), searchTx = $("#searchTx"), rangeTx = $("#rangeTx"), splitsCard = $("#splitsCard"), coachCard = $("#coachCard");
 const subsEl = $("#subs"), spikesEl = $("#spikes"), exportBtn = $("#exportBtn"), exportJsonBtn = $("#exportJsonBtn"), importJsonInput = $("#importJsonInput"), importStatus = $("#importStatus");
 const pinGate = $("#pinGate"), pinUnlockForm = $("#pinUnlockForm"), pinUnlockInput = $("#pinUnlockInput"), pinUnlockError = $("#pinUnlockError"), pinForm = $("#pinForm"), pinInput = $("#pinInput"), pinDisableBtn = $("#pinDisableBtn");
@@ -77,6 +79,8 @@ const hashText = async (t) => { const data = new TextEncoder().encode(t); const 
 const escapeCsv = (v) => { const s = String(v || ""); return /[,"\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s; };
 const downloadBlob = (content, type, filename) => { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); };
 const shiftMonth = (iso, dlt) => { const d = new Date(`${iso}T00:00:00`); d.setMonth(d.getMonth() + dlt); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(Math.min(d.getDate(), 28)).padStart(2, "0")}`; };
+const slugify = (name) => String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+const hasCategoryKey = (key) => categories.some(c => c.key === key);
 
 function showToast(msg, undoFn) {
   undoAction = undoFn || null;
@@ -206,11 +210,68 @@ function renderBills() {
   if (!bills.length) return billList.innerHTML = `<div class="muted">No fixed bills yet.</div>`;
   bills.forEach(b => {
     const div = document.createElement("div"); div.className = "item";
-    div.innerHTML = `<b>${b.name}</b><div class="muted">${centsToDollars(b.amountCents)} • ${b.cycle} • ${catMeta(b.category).label}</div><button class="btn ghost" data-del-bill="${b.id}">Delete</button>`;
+    div.innerHTML = `<b>${b.name}</b><div class="muted">${centsToDollars(b.amountCents)} ï¿½ ${b.cycle} ï¿½ ${catMeta(b.category).label}</div><button class="btn ghost" data-del-bill="${b.id}">Delete</button>`;
     div.querySelector(`[data-del-bill="${b.id}"]`).addEventListener("click", async () => { await deleteBill(b.id); await loadStateAndRender(); });
     billList.appendChild(div);
   });
 }
+
+function renderCustomCategories() {
+  customCategoryList.innerHTML = "";
+  const custom = appState.customCategories || [];
+  if (!custom.length) {
+    customCategoryList.innerHTML = `<div class="muted">No custom categories.</div>`;
+    return;
+  }
+  custom.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${c.emoji || "âœ¨"} ${c.label}</b><div class="muted">Key: ${c.key}</div><button class="btn ghost" data-del-cat="${c.key}">Delete</button>`;
+    div.querySelector(`[data-del-cat="${c.key}"]`).addEventListener("click", async () => {
+      if (!confirm(`Delete category "${c.label}"? Existing transactions/bills will move to Other.`)) return;
+
+      const nextCustom = custom.filter(x => x.key !== c.key);
+      const nextRecent = (appState.recentCategories || []).filter(x => x !== c.key);
+      appState = await saveAppState({ customCategories: nextCustom, recentCategories: nextRecent });
+
+      const nextBudgets = (budgets || []).filter(b => b.category !== c.key);
+      await saveBudgets(nextBudgets);
+
+      const txToMove = transactions.filter(t => t.category === c.key);
+      await Promise.all(txToMove.map(t => updateTransaction({ ...t, category: "other" })));
+
+      const billsToMove = bills.filter(b => b.category === c.key);
+      await Promise.all(billsToMove.map(b => saveBill({ ...b, category: "other" })));
+
+      showToast(`Category "${c.label}" deleted.`, null);
+      await loadStateAndRender();
+    });
+    customCategoryList.appendChild(div);
+  });
+}
+
+categoryForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = categoryName.value.trim();
+  if (!name) return;
+  const baseKey = slugify(name);
+  if (!baseKey) return alert("Please use letters or numbers in category name.");
+
+  let key = baseKey;
+  let i = 2;
+  while (hasCategoryKey(key)) {
+    key = `${baseKey}_${i}`;
+    i += 1;
+  }
+
+  const emoji = (categoryEmoji.value || "").trim() || "âœ¨";
+  const nextCustom = [...(appState.customCategories || []), { key, label: name, emoji }];
+  appState = await saveAppState({ customCategories: nextCustom });
+  categoryName.value = "";
+  categoryEmoji.value = "";
+  showToast(`Category "${name}" added.`, null);
+  await loadStateAndRender();
+});
 function txInRange(tx, mode) {
   if (mode === "all") return true;
   const now = new Date();
@@ -232,8 +293,8 @@ function renderTransactions() {
     const row = document.createElement("div"); row.className = "tx";
     const sign = t.type === "income" ? "+" : "-";
     const cls = t.type === "income" ? "income" : "expense";
-    const splitText = t.split?.enabled ? ` • split: ${t.split.type === "i_paid" ? "owed to me" : "i owe"} ${centsToDollars(t.split.amountCents)}` : "";
-    row.innerHTML = `<div class="left"><div class="m">${t.merchant}</div><div class="s">${catMeta(t.category).label} • ${t.date}${t.notes ? ` • ${t.notes}` : ""}${splitText}</div></div><div class="right"><div class="amt ${cls}">${sign}${centsToDollars(t.amountCents)}</div><div class="row right"><button class="btn ghost" data-edit="${t.id}">Edit</button><button class="btn ghost" data-del="${t.id}">Delete</button></div></div>`;
+    const splitText = t.split?.enabled ? ` ï¿½ split: ${t.split.type === "i_paid" ? "owed to me" : "i owe"} ${centsToDollars(t.split.amountCents)}` : "";
+    row.innerHTML = `<div class="left"><div class="m">${t.merchant}</div><div class="s">${catMeta(t.category).label} ï¿½ ${t.date}${t.notes ? ` ï¿½ ${t.notes}` : ""}${splitText}</div></div><div class="right"><div class="amt ${cls}">${sign}${centsToDollars(t.amountCents)}</div><div class="row right"><button class="btn ghost" data-edit="${t.id}">Edit</button><button class="btn ghost" data-del="${t.id}">Delete</button></div></div>`;
     row.querySelector(`[data-edit="${t.id}"]`).addEventListener("click", () => {
       editingTxId = t.id; txSubmitBtn.textContent = "Save Transaction";
       txType.value = t.type; txAmount.value = (t.amountCents / 100).toFixed(2); txMerchant.value = t.merchant; txCategory.value = t.category; txDate.value = t.date; txNotes.value = t.notes || "";
@@ -269,7 +330,7 @@ function renderInsights() {
   if (!cand.length) subsEl.innerHTML = `<div class="muted">No subscription candidates yet.</div>`;
   cand.forEach(c => {
     const div = document.createElement("div"); div.className = "item";
-    div.innerHTML = `<b>${c.merchantKey}</b><div class="muted">~${centsToDollars(c.typicalCents)} • ${c.months} months</div><button class="btn" data-sub="${c.merchantKey}">Mark as subscription</button>`;
+    div.innerHTML = `<b>${c.merchantKey}</b><div class="muted">~${centsToDollars(c.typicalCents)} ï¿½ ${c.months} months</div><button class="btn" data-sub="${c.merchantKey}">Mark as subscription</button>`;
     div.querySelector(`[data-sub="${c.merchantKey}"]`).addEventListener("click", async () => {
       await saveBill({ id: crypto.randomUUID(), name: c.merchantKey, merchantKey: c.merchantKey, amountCents: c.typicalCents, cycle: "monthly", category: "subscriptions", active: true });
       appState = await saveAppState({ suppressedSubscriptionKeys: [...new Set([...(appState.suppressedSubscriptionKeys || []), c.merchantKey])] });
@@ -353,12 +414,28 @@ function updateOnboardingStep() {
   const payCycle = document.querySelector('input[name="payCycle"]:checked')?.value || "fortnightly";
   const incomeCents = dollarsToCents(obIncome.value || "0") || 0;
   if (onboardingStep === 4) {
-    obSuggestedBudgets.innerHTML = suggestedStarterBudgets(incomeCents, payCycle, onboardingNames).map(s => `<div class="item"><b>${(onboardingNames.find(x => x.key === s.category)?.label) || s.category}</b><div class="muted">${centsToDollars(s.cycleBudgetCents)} per ${payCycle}</div></div>`).join("");
+    const suggestions = suggestedStarterBudgets(incomeCents, payCycle, onboardingNames);
+    obSuggestedBudgets.innerHTML = suggestions.map(s => {
+      const label = (onboardingNames.find(x => x.key === s.category)?.label) || s.category;
+      const placeholder = (s.cycleBudgetCents / 100).toFixed(2);
+      const value = onboardingBudgetDraft[s.category] ?? "";
+      return `<div class="item">
+        <b>${label}</b>
+        <div class="muted">Suggested: ${centsToDollars(s.cycleBudgetCents)} per ${payCycle}</div>
+        <input class="input" data-ob-budget="${s.category}" inputmode="decimal" placeholder="${placeholder}" value="${value}" />
+      </div>`;
+    }).join("");
+    obSuggestedBudgets.querySelectorAll("input[data-ob-budget]").forEach(inp => {
+      inp.addEventListener("input", () => {
+        onboardingBudgetDraft[inp.dataset.obBudget] = inp.value.trim();
+      });
+    });
   }
 }
 
 function showOnboarding() {
   onboardingStep = 1; onboardingNames = STARTER_CATEGORIES.map(c => ({ ...c }));
+  onboardingBudgetDraft = {};
   renderOnboardingCategoryInputs(); updateOnboardingStep(); onboardingEl.classList.remove("hidden");
 }
 
@@ -384,7 +461,13 @@ async function completeOnboarding(useDemo) {
   const income = dollarsToCents(obIncome.value || "0") || 0;
   const paydayISO = obPayday.value || "";
   appState = await saveAppState({ onboardingCompleted: true, payCycle, paydayISO, incomePerCycleCents: income, customCategories: onboardingNames });
-  await saveBudgets(suggestedStarterBudgets(income, payCycle, onboardingNames));
+  const suggested = suggestedStarterBudgets(income, payCycle, onboardingNames);
+  const onboardingBudgets = suggested.map(row => {
+    const typed = onboardingBudgetDraft[row.category];
+    const typedCents = typed ? (dollarsToCents(typed) || 0) : 0;
+    return { ...row, cycleBudgetCents: typedCents };
+  });
+  await saveBudgets(onboardingBudgets);
   if (income > 0) await addTransaction({ id: crypto.randomUUID(), type: "income", amountCents: income, merchant: "Income", merchantKey: "income", category: "other", date: paydayISO || todayISO(), notes: "Onboarding income", split: { enabled: false } });
   if (useDemo) await seedDemoData();
   onboardingEl.classList.add("hidden");
@@ -417,6 +500,7 @@ async function loadStateAndRender() {
   renderCategoryPickers();
   await renderBudgets();
   renderBills();
+  renderCustomCategories();
   renderDashboard();
   renderTransactions();
   renderInsights();

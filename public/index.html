@@ -58,7 +58,7 @@
 
             <div class="onboard-step hidden" data-step="4">
                 <h3>Suggested starter budgets</h3>
-                <div class="muted">These reserve from Unallocated by default. You can edit later.</div>
+                <div class="muted">Using your categories from step 3. Add budgets now or leave any field empty.</div>
                 <div id="obSuggestedBudgets" class="listy"></div>
                 <div class="hint">Use demo data adds sample budgets, transactions, and recurring bills so you can explore quickly.</div>
             </div>
@@ -257,6 +257,19 @@
                     <button class="btn" type="submit">Add Fixed Bill</button>
                 </form>
                 <div id="billList" class="listy"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-h">
+                    <h2>Categories</h2>
+                    <span class="muted">Create or remove your custom categories</span>
+                </div>
+                <form id="categoryForm" class="grid2">
+                    <input id="categoryName" class="input" placeholder="Category name (e.g. Study Supplies)" required />
+                    <input id="categoryEmoji" class="input" placeholder="Emoji (optional, default ✨)" maxlength="2" />
+                    <button class="btn" type="submit">Add Category</button>
+                </form>
+                <div id="customCategoryList" class="listy"></div>
             </div>
         </section>
 
