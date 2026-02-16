@@ -62,7 +62,7 @@ const installBtn = $("#installBtn"), resetOnboardingBtn = $("#resetOnboardingBtn
 const txForm = $("#txForm"), txSubmitBtn = $("#txSubmitBtn"), txType = $("#txType"), txAmount = $("#txAmount"), txMerchant = $("#txMerchant"), txCategorySearch = $("#txCategorySearch"), txCategory = $("#txCategory"), recentCats = $("#recentCats"), txDate = $("#txDate"), txNotes = $("#txNotes"), txSplitToggle = $("#txSplitToggle"), splitFields = $("#splitFields"), txSplitType = $("#txSplitType"), txSplitAmount = $("#txSplitAmount"), txSplitPercent = $("#txSplitPercent");
 const dashPeriodWeeklyBtn = $("#dashPeriodWeekly"), dashPeriodMonthlyBtn = $("#dashPeriodMonthly"), periodTitleEl = $("#periodTitle"), periodRangeEl = $("#periodRange"), periodRemainEl = $("#periodRemain"), periodSpentEl = $("#periodSpent"), periodBudgetEl = $("#periodBudget"), periodUnallocEl = $("#periodUnalloc"), periodIncomeEl = $("#periodIncome"), periodNetEl = $("#periodNet"), periodProjEl = $("#periodProj"), periodBarEl = $("#periodBar"), periodDetailsToggleBtn = $("#periodDetailsToggle"), periodDetailsPanel = $("#periodDetailsPanel"), availableBillsEl = $("#availableBills"), availableDiscretionaryEl = $("#availableDiscretionary"), alertsCardEl = $("#alertsCard"), alertsEl = $("#alerts"), insightAlertsEl = $("#insightAlerts");
 const budgetList = $("#budgetList"), saveBudgetsBtn = $("#saveBudgetsBtn"), billForm = $("#billForm"), billName = $("#billName"), billAmount = $("#billAmount"), billCycle = $("#billCycle"), billCategory = $("#billCategory"), billList = $("#billList");
-const addCategoryBtn = $("#addCategoryBtn"), editCategoryBtn = $("#editCategoryBtn"), deleteCategoryBtn = $("#deleteCategoryBtn");
+const addCategoryBtn = $("#addCategoryBtn");
 const txListEl = $("#txList"), searchTx = $("#searchTx"), rangeTx = $("#rangeTx"), splitsCard = $("#splitsCard"), coachCard = $("#coachCard");
 const subsEl = $("#subs"), spikesEl = $("#spikes"), exportBtn = $("#exportBtn"), exportJsonBtn = $("#exportJsonBtn"), importJsonInput = $("#importJsonInput"), importStatus = $("#importStatus");
 const pinGate = $("#pinGate"), pinUnlockForm = $("#pinUnlockForm"), pinUnlockInput = $("#pinUnlockInput"), pinUnlockError = $("#pinUnlockError"), pinForm = $("#pinForm"), pinInput = $("#pinInput"), pinDisableBtn = $("#pinDisableBtn");
@@ -206,18 +206,6 @@ txCategorySearch.addEventListener("input", () => {
 });
 
 addCategoryBtn?.addEventListener("click", () => openCategoryModal("add"));
-editCategoryBtn?.addEventListener("click", () => {
-  const key = txCategory.value;
-  if (!key) return;
-  openCategoryModal("edit", key);
-});
-deleteCategoryBtn?.addEventListener("click", async () => {
-  const key = txCategory.value;
-  if (!key) return;
-  await deleteCategoryByKey(key);
-  await loadStateAndRender();
-  txCategory.value = fallbackCategoryKey();
-});
 
 categoryModalCancel?.addEventListener("click", closeCategoryModal);
 categoryModal?.addEventListener("click", (e) => {
@@ -322,7 +310,23 @@ async function renderBudgets() {
     const row = map.get(c.key) || { cycleBudgetCents: 0, reserveFromUnallocated: true };
     const div = document.createElement("div");
     div.className = "budget-row";
-    div.innerHTML = `<div class="cat">${c.emoji} ${c.label}</div><input class="input" inputmode="decimal" data-cat="${c.key}" data-kind="amount" value="${(Number(row.cycleBudgetCents || 0) / 100).toFixed(2)}" /><label class="chip"><input type="checkbox" data-cat="${c.key}" data-kind="reserve" ${row.reserveFromUnallocated !== false ? "checked" : ""}> Reserve</label>`;
+    div.innerHTML = `
+      <div class="cat-block">
+        <div class="cat">${c.emoji} ${c.label}</div>
+        <div class="cat-actions">
+          <button class="btn ghost cat-mini-btn" type="button" data-bcat-edit="${c.key}">Edit</button>
+          <button class="btn ghost cat-mini-btn" type="button" data-bcat-del="${c.key}">Delete</button>
+        </div>
+      </div>
+      <input class="input" inputmode="decimal" data-cat="${c.key}" data-kind="amount" value="${(Number(row.cycleBudgetCents || 0) / 100).toFixed(2)}" />
+      <label class="chip"><input type="checkbox" data-cat="${c.key}" data-kind="reserve" ${row.reserveFromUnallocated !== false ? "checked" : ""}> Reserve</label>
+    `;
+    div.querySelector(`[data-bcat-edit="${c.key}"]`)?.addEventListener("click", () => openCategoryModal("edit", c.key));
+    div.querySelector(`[data-bcat-del="${c.key}"]`)?.addEventListener("click", async () => {
+      await deleteCategoryByKey(c.key);
+      await loadStateAndRender();
+      txCategory.value = fallbackCategoryKey();
+    });
     budgetList.appendChild(div);
   });
 }

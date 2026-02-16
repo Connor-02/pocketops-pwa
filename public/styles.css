@@ -193,6 +193,20 @@ h2, h3 { margin: 0; }
     padding: 10px;
 }
 .cat { font-weight: 900; display: flex; align-items: center; gap: 10px; }
+.cat-block {
+    display: grid;
+    gap: 6px;
+}
+.cat-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cat-mini-btn {
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+}
 
 .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .tx {
