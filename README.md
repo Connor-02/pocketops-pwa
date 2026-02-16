@@ -15,6 +15,7 @@ Offline-first budgeting PWA for uni/post-grad users. Data is stored locally on-d
 - Optional local 4-digit PIN lock stored as a SHA-256 hash.
 - Spend guardrails (75% / 100%), spike explanations, and coaching insight card.
 - Versioned local schema and modular calculation engine using integer cents.
+- Simplified dashboard: weekly/monthly segmented view, Remaining as hero metric, collapsible advanced details, compact conditional alerts, and combined "Available to Spend" card.
 
 ## Local Run
 1. Use any static file server at repo root.
@@ -55,3 +56,4 @@ npm test
 - Added student-focused insights (guardrails, spike causes, coaching card).
 - Added schema versioning and modular calculations.
 - Added basic unit tests for calculations + import validation.
+- Redesigned dashboard for clarity: single-period toggle, hero Remaining, advanced metrics collapse, hidden-empty alerts, and modular render functions.

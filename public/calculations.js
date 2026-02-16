@@ -33,6 +33,8 @@ export const DEFAULT_APP_STATE = {
     useScheduledIncome: false,
     recentCategories: [],
     customCategories: STARTER_CATEGORIES,
+    categoryOverrides: {},
+    deletedCategoryKeys: [],
     suppressedSubscriptionKeys: [],
     pinEnabled: false,
     pinHash: ""
@@ -109,20 +111,23 @@ export function projection(totalSoFarCents, daysElapsed, totalDays) {
     return Math.round((totalSoFarCents / daysElapsed) * totalDays);
 }
 
-export function getAllCategories(customCategories = []) {
+export function getAllCategories(customCategories = [], categoryOverrides = {}, deletedCategoryKeys = []) {
+    const deleted = new Set(deletedCategoryKeys || []);
     const all = [...customCategories, ...EXTRA_CATEGORIES];
     const seen = new Set();
     const out = [];
     for (const c of all) {
         if (!c?.key || seen.has(c.key)) continue;
+        if (deleted.has(c.key)) continue;
+        const override = categoryOverrides?.[c.key] || {};
         seen.add(c.key);
         out.push({
             key: c.key,
-            label: c.label || c.key,
-            emoji: c.emoji || FALLBACK_CATEGORY.emoji
+            label: override.label || c.label || c.key,
+            emoji: override.emoji || c.emoji || FALLBACK_CATEGORY.emoji
         });
     }
-    if (!seen.has(FALLBACK_CATEGORY.key)) out.push(FALLBACK_CATEGORY);
+    if (!out.length) out.push(FALLBACK_CATEGORY);
     return out;
 }
 
@@ -311,7 +316,15 @@ export function calculateDashboardPeriod({
         discretionaryAvailable,
         spentByCategory,
         reservedByCategory: categoryMap,
-        alerts: buildGuardrailAlerts(spentByCategory, categoryMap, getAllCategories(appState?.customCategories || []))
+        alerts: buildGuardrailAlerts(
+            spentByCategory,
+            categoryMap,
+            getAllCategories(
+                appState?.customCategories || [],
+                appState?.categoryOverrides || {},
+                appState?.deletedCategoryKeys || []
+            )
+        )
     };
 }
 

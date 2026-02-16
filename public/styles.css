@@ -90,14 +90,15 @@ h2, h3 { margin: 0; }
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, 0.58);
-    box-shadow: var(--shadow);
-    padding: 10px;
+    box-shadow: 0 8px 18px rgba(43, 43, 51, 0.08);
+    padding: 8px;
 }
 .card {
     border-radius: 20px;
     border: 1px solid var(--border);
     background: var(--card);
-    padding: 14px;
+    box-shadow: 0 6px 14px rgba(43, 43, 51, 0.06);
+    padding: 12px;
 }
 .card.soft { background: var(--card2); }
 .card-h {
@@ -286,6 +287,61 @@ h2, h3 { margin: 0; }
     padding: 0 14px 24px;
 }
 
+.seg-toggle {
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.74);
+}
+.seg-btn {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    padding: 8px 12px;
+    font-weight: 800;
+    color: var(--muted);
+    cursor: pointer;
+}
+.seg-btn.active {
+    color: var(--ink);
+    background: linear-gradient(135deg, var(--sky), var(--mint));
+    border-color: rgba(43, 43, 51, 0.08);
+}
+.hero-remaining {
+    text-align: center;
+    margin: 12px 0;
+}
+.hero-v {
+    font-size: 46px;
+    font-weight: 900;
+    line-height: 1;
+}
+.hero-mini {
+    font-size: 26px;
+}
+.period-secondary {
+    gap: 8px;
+}
+.details-toggle {
+    margin-top: 8px;
+    width: 100%;
+}
+.details-panel {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: max-height 220ms ease, opacity 200ms ease, transform 220ms ease;
+}
+.details-panel.open {
+    max-height: 160px;
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* Phone-first app framing */
 @media (max-width: 860px) {
     .topbar {
@@ -325,10 +381,10 @@ h2, h3 { margin: 0; }
     }
     .card {
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
     }
     .v {
-        font-size: 20px;
+        font-size: 18px;
     }
     .big {
         gap: 8px;
@@ -399,5 +455,20 @@ h2, h3 { margin: 0; }
         grid-template-columns: 1fr;
         gap: 8px;
         align-items: stretch;
+    }
+    .hero-v {
+        font-size: 38px;
+    }
+    .hero-mini {
+        font-size: 22px;
+    }
+    .details-panel.open {
+        max-height: 180px;
+    }
+    .seg-toggle {
+        width: 100%;
+    }
+    .seg-btn {
+        min-height: 40px;
     }
 }

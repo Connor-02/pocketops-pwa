@@ -101,59 +101,48 @@
             <div class="card soft explainer">
                 <b>Concepts:</b> Unallocated is income not yet reserved. Projected estimates end-of-period spend pace.
             </div>
-            <div class="grid2">
-                <div class="card">
-                    <div class="card-h">
-                        <h2>This Week</h2>
-                        <span id="weekRange" class="pill"></span>
-                    </div>
-                    <div class="big">
-                        <div><div class="k">Spent</div><div class="v" id="weekSpent">$0.00</div></div>
-                        <div><div class="k">Budget</div><div class="v" id="weekBudget">$0.00</div></div>
-                    </div>
-                    <div class="meter"><div class="meter-bar" id="weekBar"></div></div>
-                    <div class="row">
-                        <div class="mini"><div class="k">Remaining</div><div class="v" id="weekRemain">$0.00</div></div>
-                        <div class="mini"><div class="k">Projected</div><div class="v" id="weekProj">$0.00</div></div>
-                    </div>
-                    <div class="row">
-                        <div class="mini"><div class="k">Income</div><div class="v" id="weekIncome">$0.00</div></div>
-                        <div class="mini"><div class="k">Unallocated</div><div class="v" id="weekUnalloc">$0.00</div></div>
-                        <div class="mini"><div class="k">Net</div><div class="v" id="weekNet">$0.00</div></div>
-                    </div>
+            <div class="card">
+                <div class="seg-toggle" role="tablist" aria-label="Period">
+                    <button id="dashPeriodWeekly" class="seg-btn active" type="button">Weekly</button>
+                    <button id="dashPeriodMonthly" class="seg-btn" type="button">Monthly</button>
                 </div>
-                <div class="card">
-                    <div class="card-h">
-                        <h2>This Month</h2>
-                        <span id="monthRange" class="pill"></span>
-                    </div>
-                    <div class="big">
-                        <div><div class="k">Spent</div><div class="v" id="monthSpent">$0.00</div></div>
-                        <div><div class="k">Budget</div><div class="v" id="monthBudget">$0.00</div></div>
-                    </div>
-                    <div class="meter"><div class="meter-bar" id="monthBar"></div></div>
-                    <div class="row">
-                        <div class="mini"><div class="k">Remaining</div><div class="v" id="monthRemain">$0.00</div></div>
-                        <div class="mini"><div class="k">Projected</div><div class="v" id="monthProj">$0.00</div></div>
-                    </div>
-                    <div class="row">
-                        <div class="mini"><div class="k">Income</div><div class="v" id="monthIncome">$0.00</div></div>
-                        <div class="mini"><div class="k">Unallocated</div><div class="v" id="monthUnalloc">$0.00</div></div>
-                        <div class="mini"><div class="k">Net</div><div class="v" id="monthNet">$0.00</div></div>
+                <div class="card-h">
+                    <h2 id="periodTitle">This Week</h2>
+                    <span id="periodRange" class="pill"></span>
+                </div>
+
+                <div class="hero-remaining">
+                    <div class="k">Remaining</div>
+                    <div class="hero-v" id="periodRemain">$0.00</div>
+                </div>
+
+                <div class="meter"><div class="meter-bar" id="periodBar"></div></div>
+
+                <div class="row period-secondary">
+                    <div class="mini"><div class="k">Spent</div><div class="v" id="periodSpent">$0.00</div></div>
+                    <div class="mini"><div class="k">Budget</div><div class="v" id="periodBudget">$0.00</div></div>
+                    <div class="mini"><div class="k">Unallocated</div><div class="v" id="periodUnalloc">$0.00</div></div>
+                </div>
+
+                <button id="periodDetailsToggle" class="btn ghost details-toggle" type="button" aria-expanded="false">Show details ▼</button>
+                <div id="periodDetailsPanel" class="details-panel">
+                    <div class="row period-secondary">
+                        <div class="mini"><div class="k">Income</div><div class="v" id="periodIncome">$0.00</div></div>
+                        <div class="mini"><div class="k">Net</div><div class="v" id="periodNet">$0.00</div></div>
+                        <div class="mini"><div class="k">Projected</div><div class="v" id="periodProj">$0.00</div></div>
                     </div>
                 </div>
             </div>
-            <div class="grid2">
-                <div class="card soft">
-                    <h3>Bills reserved</h3>
-                    <div class="v" id="billsReserved">$0.00</div>
-                </div>
-                <div class="card soft">
-                    <h3>Discretionary available</h3>
-                    <div class="v" id="discretionaryAvailable">$0.00</div>
-                </div>
-            </div>
+
             <div class="card soft">
+                <h3>Available to Spend</h3>
+                <div class="row period-secondary">
+                    <div class="mini"><div class="k">Bills Reserved</div><div class="v" id="availableBills">$0.00</div></div>
+                    <div class="mini"><div class="k">Discretionary Available</div><div class="v hero-mini" id="availableDiscretionary">$0.00</div></div>
+                </div>
+            </div>
+
+            <div id="alertsCard" class="card soft hidden">
                 <h3>Alerts</h3>
                 <div id="alerts" class="alerts"></div>
             </div>

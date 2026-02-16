@@ -38,7 +38,11 @@ let appState = { ...DEFAULT_APP_STATE };
 let transactions = [];
 let budgets = [];
 let bills = [];
-let categories = getAllCategories(DEFAULT_APP_STATE.customCategories);
+let categories = getAllCategories(
+  DEFAULT_APP_STATE.customCategories,
+  DEFAULT_APP_STATE.categoryOverrides,
+  DEFAULT_APP_STATE.deletedCategoryKeys
+);
 let editingTxId = null;
 let onboardingStep = 1;
 let onboardingNames = STARTER_CATEGORIES.map(c => ({ ...c }));
@@ -48,11 +52,15 @@ let toastTimer = null;
 let deferredPrompt = null;
 let categoryModalMode = "add";
 let categoryModalKey = "";
+const DASHBOARD_VIEW_KEY = "pocketops.dashboardView";
+let dashboardView = localStorage.getItem(DASHBOARD_VIEW_KEY) === "month" ? "month" : "week";
+let dashboardDetailsOpen = false;
+let dashboardPeriodCache = { week: null, month: null };
 
 const tabBtns = $$(".tab"), panes = $$(".tabpane");
 const installBtn = $("#installBtn"), resetOnboardingBtn = $("#resetOnboardingBtn"), offlineBadge = $("#offlineBadge"), quickAddBtn = $("#quickAddBtn");
 const txForm = $("#txForm"), txSubmitBtn = $("#txSubmitBtn"), txType = $("#txType"), txAmount = $("#txAmount"), txMerchant = $("#txMerchant"), txCategorySearch = $("#txCategorySearch"), txCategory = $("#txCategory"), recentCats = $("#recentCats"), txDate = $("#txDate"), txNotes = $("#txNotes"), txSplitToggle = $("#txSplitToggle"), splitFields = $("#splitFields"), txSplitType = $("#txSplitType"), txSplitAmount = $("#txSplitAmount"), txSplitPercent = $("#txSplitPercent");
-const weekRange = $("#weekRange"), monthRange = $("#monthRange"), weekSpentEl = $("#weekSpent"), weekBudgetEl = $("#weekBudget"), weekRemainEl = $("#weekRemain"), weekProjEl = $("#weekProj"), weekIncomeEl = $("#weekIncome"), weekUnallocEl = $("#weekUnalloc"), weekNetEl = $("#weekNet"), weekBar = $("#weekBar"), monthSpentEl = $("#monthSpent"), monthBudgetEl = $("#monthBudget"), monthRemainEl = $("#monthRemain"), monthProjEl = $("#monthProj"), monthIncomeEl = $("#monthIncome"), monthUnallocEl = $("#monthUnalloc"), monthNetEl = $("#monthNet"), monthBar = $("#monthBar"), billsReservedEl = $("#billsReserved"), discretionaryAvailableEl = $("#discretionaryAvailable"), alertsEl = $("#alerts"), insightAlertsEl = $("#insightAlerts");
+const dashPeriodWeeklyBtn = $("#dashPeriodWeekly"), dashPeriodMonthlyBtn = $("#dashPeriodMonthly"), periodTitleEl = $("#periodTitle"), periodRangeEl = $("#periodRange"), periodRemainEl = $("#periodRemain"), periodSpentEl = $("#periodSpent"), periodBudgetEl = $("#periodBudget"), periodUnallocEl = $("#periodUnalloc"), periodIncomeEl = $("#periodIncome"), periodNetEl = $("#periodNet"), periodProjEl = $("#periodProj"), periodBarEl = $("#periodBar"), periodDetailsToggleBtn = $("#periodDetailsToggle"), periodDetailsPanel = $("#periodDetailsPanel"), availableBillsEl = $("#availableBills"), availableDiscretionaryEl = $("#availableDiscretionary"), alertsCardEl = $("#alertsCard"), alertsEl = $("#alerts"), insightAlertsEl = $("#insightAlerts");
 const budgetList = $("#budgetList"), saveBudgetsBtn = $("#saveBudgetsBtn"), billForm = $("#billForm"), billName = $("#billName"), billAmount = $("#billAmount"), billCycle = $("#billCycle"), billCategory = $("#billCategory"), billList = $("#billList");
 const addCategoryBtn = $("#addCategoryBtn"), editCategoryBtn = $("#editCategoryBtn"), deleteCategoryBtn = $("#deleteCategoryBtn");
 const txListEl = $("#txList"), searchTx = $("#searchTx"), rangeTx = $("#rangeTx"), splitsCard = $("#splitsCard"), coachCard = $("#coachCard");
@@ -71,6 +79,26 @@ tabBtns.forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
 installBtn.addEventListener("click", async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; installBtn.hidden = true; });
 quickAddBtn.addEventListener("click", () => setTab("add"));
+const setDashboardView = (view) => {
+  dashboardView = view === "month" ? "month" : "week";
+  localStorage.setItem(DASHBOARD_VIEW_KEY, dashboardView);
+  dashPeriodWeeklyBtn?.classList.toggle("active", dashboardView === "week");
+  dashPeriodMonthlyBtn?.classList.toggle("active", dashboardView === "month");
+  if (dashboardPeriodCache[dashboardView]) {
+    renderPeriodView(dashboardView);
+    renderAvailableCard();
+    const selectedAlerts = getDashboardAlerts(dashboardView);
+    renderAlerts(selectedAlerts);
+  }
+};
+dashPeriodWeeklyBtn?.addEventListener("click", () => setDashboardView("week"));
+dashPeriodMonthlyBtn?.addEventListener("click", () => setDashboardView("month"));
+periodDetailsToggleBtn?.addEventListener("click", () => {
+  dashboardDetailsOpen = !dashboardDetailsOpen;
+  periodDetailsPanel?.classList.toggle("open", dashboardDetailsOpen);
+  periodDetailsToggleBtn.textContent = dashboardDetailsOpen ? "Hide details ▲" : "Show details ▼";
+  periodDetailsToggleBtn.setAttribute("aria-expanded", String(dashboardDetailsOpen));
+});
 const updateOfflineBadge = () => { offlineBadge.textContent = navigator.onLine ? "Offline-first: data stored locally (online)" : "Offline-first: data stored locally (offline)"; };
 window.addEventListener("online", updateOfflineBadge); window.addEventListener("offline", updateOfflineBadge);
 
@@ -84,7 +112,7 @@ const downloadBlob = (content, type, filename) => { const blob = new Blob([conte
 const shiftMonth = (iso, dlt) => { const d = new Date(`${iso}T00:00:00`); d.setMonth(d.getMonth() + dlt); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(Math.min(d.getDate(), 28)).padStart(2, "0")}`; };
 const slugify = (name) => String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const hasCategoryKey = (key) => categories.some(c => c.key === key);
-const isCustomCategory = (key) => (appState.customCategories || []).some(c => c.key === key);
+const fallbackCategoryKey = () => categories[0]?.key || "other";
 
 function showToast(msg, undoFn) {
   undoAction = undoFn || null;
@@ -112,37 +140,46 @@ function renderCategoryPickers() {
 }
 
 async function deleteCategoryByKey(key) {
-  const custom = appState.customCategories || [];
-  const category = custom.find(c => c.key === key);
-  if (!category) {
-    alert("Only custom categories can be deleted.");
-    return;
-  }
-  if (!confirm(`Delete category "${category.label}"? Existing transactions/bills will move to Other.`)) return;
+  const category = categories.find(c => c.key === key);
+  if (!category) return;
+  if (!confirm(`Delete category "${category.label}"? Existing transactions/bills will move to another category.`)) return;
 
+  const custom = appState.customCategories || [];
   const nextCustom = custom.filter(x => x.key !== key);
   const nextRecent = (appState.recentCategories || []).filter(x => x !== key);
-  appState = await saveAppState({ customCategories: nextCustom, recentCategories: nextRecent });
+  const nextDeleted = [...new Set([...(appState.deletedCategoryKeys || []), key])];
+  const nextOverrides = { ...(appState.categoryOverrides || {}) };
+  delete nextOverrides[key];
+  appState = await saveAppState({
+    customCategories: nextCustom,
+    recentCategories: nextRecent,
+    deletedCategoryKeys: nextDeleted,
+    categoryOverrides: nextOverrides
+  });
 
   const nextBudgets = (budgets || []).filter(b => b.category !== key);
   await saveBudgets(nextBudgets);
 
+  const nextCategories = getAllCategories(
+    appState.customCategories || [],
+    appState.categoryOverrides || {},
+    appState.deletedCategoryKeys || []
+  );
+  const remapCategory = nextCategories[0]?.key || "other";
+
   const txToMove = transactions.filter(t => t.category === key);
-  await Promise.all(txToMove.map(t => updateTransaction({ ...t, category: "other" })));
+  await Promise.all(txToMove.map(t => updateTransaction({ ...t, category: remapCategory })));
 
   const billsToMove = bills.filter(b => b.category === key);
-  await Promise.all(billsToMove.map(b => saveBill({ ...b, category: "other" })));
+  await Promise.all(billsToMove.map(b => saveBill({ ...b, category: remapCategory })));
 }
 
 function openCategoryModal(mode, key = "") {
   categoryModalMode = mode;
   categoryModalKey = key;
   if (mode === "edit") {
-    const current = (appState.customCategories || []).find(c => c.key === key);
-    if (!current) {
-      alert("Only custom categories can be edited.");
-      return;
-    }
+    const current = categories.find(c => c.key === key);
+    if (!current) return;
     categoryModalTitle.textContent = "Edit category";
     categoryModalName.value = current.label || "";
     categoryModalEmoji.value = current.emoji || "✨";
@@ -171,15 +208,15 @@ txCategorySearch.addEventListener("input", () => {
 addCategoryBtn?.addEventListener("click", () => openCategoryModal("add"));
 editCategoryBtn?.addEventListener("click", () => {
   const key = txCategory.value;
-  if (!isCustomCategory(key)) return alert("Select a custom category to edit.");
+  if (!key) return;
   openCategoryModal("edit", key);
 });
 deleteCategoryBtn?.addEventListener("click", async () => {
   const key = txCategory.value;
-  if (!isCustomCategory(key)) return alert("Select a custom category to delete.");
+  if (!key) return;
   await deleteCategoryByKey(key);
   await loadStateAndRender();
-  txCategory.value = "other";
+  txCategory.value = fallbackCategoryKey();
 });
 
 categoryModalCancel?.addEventListener("click", closeCategoryModal);
@@ -193,9 +230,9 @@ categoryModalForm?.addEventListener("submit", async (e) => {
   const emoji = (categoryModalEmoji.value || "").trim() || "✨";
 
   if (categoryModalMode === "edit") {
-    if (!isCustomCategory(categoryModalKey)) return alert("Only custom categories can be edited.");
-    const nextCustom = (appState.customCategories || []).map(c => c.key === categoryModalKey ? { ...c, label: name, emoji } : c);
-    appState = await saveAppState({ customCategories: nextCustom });
+    const nextOverrides = { ...(appState.categoryOverrides || {}) };
+    nextOverrides[categoryModalKey] = { label: name, emoji };
+    appState = await saveAppState({ categoryOverrides: nextOverrides });
     closeCategoryModal();
     showToast(`Category "${name}" updated.`, null);
     await loadStateAndRender();
@@ -212,7 +249,8 @@ categoryModalForm?.addEventListener("submit", async (e) => {
     i += 1;
   }
   const nextCustom = [...(appState.customCategories || []), { key, label: name, emoji }];
-  appState = await saveAppState({ customCategories: nextCustom });
+  const nextDeleted = (appState.deletedCategoryKeys || []).filter(x => x !== key);
+  appState = await saveAppState({ customCategories: nextCustom, deletedCategoryKeys: nextDeleted });
   closeCategoryModal();
   showToast(`Category "${name}" added.`, null);
   await loadStateAndRender();
@@ -356,20 +394,66 @@ function renderTransactions() {
 searchTx.addEventListener("input", renderTransactions);
 rangeTx.addEventListener("change", renderTransactions);
 
+function getDashboardAlerts(type) {
+  const period = dashboardPeriodCache[type];
+  if (!period) return [];
+  const alerts = [...(period.alerts || [])];
+  if (period.unallocated < 0) {
+    alerts.push({ type: "bad", msg: `${type === "week" ? "Weekly" : "Monthly"} unallocated is negative after category overspend.` });
+  }
+  return alerts;
+}
+
+function renderPeriodView(type) {
+  const period = dashboardPeriodCache[type];
+  if (!period) return;
+  periodTitleEl.textContent = type === "week" ? "This Week" : "This Month";
+  periodRangeEl.textContent = fmtRange(period.rangeStart, period.rangeEnd);
+  periodRemainEl.textContent = centsToDollars(period.remaining);
+  periodSpentEl.textContent = centsToDollars(period.spent);
+  periodBudgetEl.textContent = centsToDollars(period.budget);
+  periodUnallocEl.textContent = centsToDollars(period.unallocated);
+  periodIncomeEl.textContent = centsToDollars(period.income);
+  periodNetEl.textContent = centsToDollars(period.net);
+  periodProjEl.textContent = centsToDollars(period.projected);
+  periodBarEl.style.width = `${meterWidth(period.spent, period.budget)}%`;
+  periodDetailsPanel?.classList.toggle("open", dashboardDetailsOpen);
+  periodDetailsToggleBtn.textContent = dashboardDetailsOpen ? "Hide details ▲" : "Show details ▼";
+  periodDetailsToggleBtn.setAttribute("aria-expanded", String(dashboardDetailsOpen));
+}
+
+function renderAvailableCard() {
+  const period = dashboardPeriodCache[dashboardView];
+  if (!period) return;
+  availableBillsEl.textContent = centsToDollars(period.billsReserved);
+  availableDiscretionaryEl.textContent = centsToDollars(period.discretionaryAvailable);
+}
+
+function renderAlerts(alerts) {
+  if (!alerts?.length) {
+    alertsCardEl.classList.add("hidden");
+    alertsEl.innerHTML = "";
+    return;
+  }
+  alertsCardEl.classList.remove("hidden");
+  alertsEl.innerHTML = "";
+  alerts.forEach(a => alertsEl.appendChild(makeAlert(a.type, a.msg)));
+}
+
 function renderDashboard() {
   const now = new Date();
-  const week = calculateDashboardPeriod({ transactions, budgets, bills, appState, nowDate: now, period: "week" });
-  const month = calculateDashboardPeriod({ transactions, budgets, bills, appState, nowDate: now, period: "month" });
-  weekRange.textContent = fmtRange(week.rangeStart, week.rangeEnd); monthRange.textContent = fmtRange(month.rangeStart, month.rangeEnd);
-  weekSpentEl.textContent = centsToDollars(week.spent); weekBudgetEl.textContent = centsToDollars(week.budget); weekRemainEl.textContent = centsToDollars(week.remaining); weekProjEl.textContent = centsToDollars(week.projected); weekIncomeEl.textContent = centsToDollars(week.income); weekUnallocEl.textContent = centsToDollars(week.unallocated); weekNetEl.textContent = centsToDollars(week.net); weekBar.style.width = `${meterWidth(week.spent, week.budget)}%`;
-  monthSpentEl.textContent = centsToDollars(month.spent); monthBudgetEl.textContent = centsToDollars(month.budget); monthRemainEl.textContent = centsToDollars(month.remaining); monthProjEl.textContent = centsToDollars(month.projected); monthIncomeEl.textContent = centsToDollars(month.income); monthUnallocEl.textContent = centsToDollars(month.unallocated); monthNetEl.textContent = centsToDollars(month.net); monthBar.style.width = `${meterWidth(month.spent, month.budget)}%`;
-  billsReservedEl.textContent = centsToDollars(month.billsReserved); discretionaryAvailableEl.textContent = centsToDollars(month.discretionaryAvailable);
-  const alerts = [...week.alerts, ...month.alerts];
-  if (week.unallocated < 0) alerts.push({ type: "bad", msg: "Weekly unallocated is negative after category overspend." });
-  if (month.unallocated < 0) alerts.push({ type: "bad", msg: "Monthly unallocated is negative after category overspend." });
-  alertsEl.innerHTML = ""; if (!alerts.length) alertsEl.appendChild(makeAlert("good", "No alerts yet. Budget is on track."));
-  alerts.forEach(a => alertsEl.appendChild(makeAlert(a.type, a.msg)));
-  insightAlertsEl.innerHTML = alertsEl.innerHTML;
+  dashboardPeriodCache.week = calculateDashboardPeriod({ transactions, budgets, bills, appState, nowDate: now, period: "week" });
+  dashboardPeriodCache.month = calculateDashboardPeriod({ transactions, budgets, bills, appState, nowDate: now, period: "month" });
+
+  dashPeriodWeeklyBtn?.classList.toggle("active", dashboardView === "week");
+  dashPeriodMonthlyBtn?.classList.toggle("active", dashboardView === "month");
+  renderPeriodView(dashboardView);
+  renderAvailableCard();
+  renderAlerts(getDashboardAlerts(dashboardView));
+
+  const insightAlerts = [...getDashboardAlerts("week"), ...getDashboardAlerts("month")];
+  insightAlertsEl.innerHTML = "";
+  insightAlerts.forEach(a => insightAlertsEl.appendChild(makeAlert(a.type, a.msg)));
 }
 
 function renderInsights() {
@@ -555,7 +639,11 @@ resetOnboardingBtn.addEventListener("click", async () => {
 
 async function loadStateAndRender() {
   appState = await getAppState();
-  categories = getAllCategories(appState.customCategories);
+  categories = getAllCategories(
+    appState.customCategories,
+    appState.categoryOverrides,
+    appState.deletedCategoryKeys
+  );
   [transactions, budgets, bills] = await Promise.all([getAllTransactions(), getBudgets(), getBills()]);
   renderCategoryPickers();
   await renderBudgets();
