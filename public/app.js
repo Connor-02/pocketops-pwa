@@ -57,6 +57,7 @@ const txListEl = $("#txList"), searchTx = $("#searchTx"), rangeTx = $("#rangeTx"
 const subsEl = $("#subs"), spikesEl = $("#spikes"), exportBtn = $("#exportBtn"), exportJsonBtn = $("#exportJsonBtn"), importJsonInput = $("#importJsonInput"), importStatus = $("#importStatus");
 const pinGate = $("#pinGate"), pinUnlockForm = $("#pinUnlockForm"), pinUnlockInput = $("#pinUnlockInput"), pinUnlockError = $("#pinUnlockError"), pinForm = $("#pinForm"), pinInput = $("#pinInput"), pinDisableBtn = $("#pinDisableBtn");
 const onboardingEl = $("#onboarding"), onboardStepLabel = $("#onboardStepLabel"), obSteps = $$(".onboard-step"), obBack = $("#obBack"), obNext = $("#obNext"), obDemo = $("#obDemo"), obIncome = $("#obIncome"), obPayday = $("#obPayday"), obCategories = $("#obCategories"), obSuggestedBudgets = $("#obSuggestedBudgets");
+const obCategoryForm = $("#obCategoryForm"), obCategoryName = $("#obCategoryName"), obCategoryEmoji = $("#obCategoryEmoji");
 const toast = $("#toast"), toastMsg = $("#toastMsg"), toastUndo = $("#toastUndo");
 
 const setTab = (name) => {
@@ -419,13 +420,48 @@ function renderOnboardingCategoryInputs() {
   obCategories.innerHTML = "";
   onboardingNames.forEach((cat, idx) => {
     const div = document.createElement("div"); div.className = "item";
-    div.innerHTML = `<label>${cat.emoji || "?"} starter ${idx + 1}</label><input class="input" data-ob-name="${cat.key}" value="${cat.label}" />`;
+    div.innerHTML = `
+      <label>${cat.emoji || "?"} starter ${idx + 1}</label>
+      <div class="row">
+        <input class="input" data-ob-name="${cat.key}" value="${cat.label}" />
+        <input class="input" data-ob-emoji="${cat.key}" value="${cat.emoji || "✨"}" maxlength="2" />
+        <button class="btn ghost" type="button" data-ob-del="${cat.key}">Delete</button>
+      </div>
+    `;
     obCategories.appendChild(div);
   });
   obCategories.querySelectorAll("input[data-ob-name]").forEach(inp => inp.addEventListener("input", () => {
     const key = inp.dataset.obName; onboardingNames = onboardingNames.map(c => c.key === key ? { ...c, label: inp.value.trim() || c.label } : c);
   }));
+  obCategories.querySelectorAll("input[data-ob-emoji]").forEach(inp => inp.addEventListener("input", () => {
+    const key = inp.dataset.obEmoji; onboardingNames = onboardingNames.map(c => c.key === key ? { ...c, emoji: inp.value.trim() || "✨" } : c);
+  }));
+  obCategories.querySelectorAll("button[data-ob-del]").forEach(btn => btn.addEventListener("click", () => {
+    const key = btn.dataset.obDel;
+    if (onboardingNames.length <= 1) return alert("Keep at least one category.");
+    onboardingNames = onboardingNames.filter(c => c.key !== key);
+    delete onboardingBudgetDraft[key];
+    renderOnboardingCategoryInputs();
+  }));
 }
+
+obCategoryForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = (obCategoryName.value || "").trim();
+  if (!name) return;
+  const base = slugify(name);
+  if (!base) return alert("Please use letters or numbers in category name.");
+  let key = base;
+  let i = 2;
+  while (onboardingNames.some(c => c.key === key)) {
+    key = `${base}_${i}`;
+    i += 1;
+  }
+  onboardingNames.push({ key, label: name, emoji: (obCategoryEmoji.value || "").trim() || "✨" });
+  obCategoryName.value = "";
+  obCategoryEmoji.value = "";
+  renderOnboardingCategoryInputs();
+});
 
 function updateOnboardingStep() {
   onboardStepLabel.textContent = `Step ${onboardingStep} of 4`;

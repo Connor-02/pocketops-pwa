@@ -52,7 +52,12 @@
 
             <div class="onboard-step hidden" data-step="3">
                 <h3>Starter categories</h3>
-                <div class="muted">Edit names if you want, then continue.</div>
+                <div class="muted">Edit, add, or delete categories before setting budgets.</div>
+                <form id="obCategoryForm" class="row">
+                    <input id="obCategoryName" class="input" placeholder="New category name" />
+                    <input id="obCategoryEmoji" class="input" placeholder="Emoji" maxlength="2" />
+                    <button class="btn" type="submit">Add category</button>
+                </form>
                 <div id="obCategories" class="listy"></div>
             </div>
 
