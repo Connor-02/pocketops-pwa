@@ -1,30 +1,90 @@
 <!doctype html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PocketOps</title>
-
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#ffd6e7" />
-
     <link rel="stylesheet" href="/styles.css" />
 </head>
-
 <body>
+    <div id="pinGate" class="overlay hidden">
+        <div class="card modal">
+            <h2>PocketOps PIN</h2>
+            <div class="muted">Enter your 4-digit PIN to unlock this device.</div>
+            <form id="pinUnlockForm" class="form">
+                <input id="pinUnlockInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="0000" required />
+                <button class="btn bigbtn" type="submit">Unlock</button>
+            </form>
+            <div id="pinUnlockError" class="muted danger hidden">Incorrect PIN.</div>
+        </div>
+    </div>
+
+    <div id="onboarding" class="overlay hidden">
+        <div class="card modal wide">
+            <div class="card-h">
+                <h2>Welcome to PocketOps</h2>
+                <span class="pill" id="onboardStepLabel">Step 1 of 4</span>
+            </div>
+            <div id="onboardCopy" class="muted">Set your pay cycle and build your first zero-based plan.</div>
+
+            <div class="onboard-step" data-step="1">
+                <h3>Choose pay cycle</h3>
+                <div class="chip-row">
+                    <label class="chip"><input type="radio" name="payCycle" value="weekly"> Weekly</label>
+                    <label class="chip"><input type="radio" name="payCycle" value="fortnightly" checked> Fortnightly</label>
+                    <label class="chip"><input type="radio" name="payCycle" value="monthly"> Monthly</label>
+                </div>
+            </div>
+
+            <div class="onboard-step hidden" data-step="2">
+                <h3>Add income</h3>
+                <div class="form-row">
+                    <label>Income per pay cycle</label>
+                    <input id="obIncome" class="input" inputmode="decimal" placeholder="e.g. 1200.00" />
+                </div>
+                <div class="form-row">
+                    <label>Optional payday date</label>
+                    <input id="obPayday" class="input" type="date" />
+                </div>
+            </div>
+
+            <div class="onboard-step hidden" data-step="3">
+                <h3>Starter categories</h3>
+                <div class="muted">Edit names if you want, then continue.</div>
+                <div id="obCategories" class="listy"></div>
+            </div>
+
+            <div class="onboard-step hidden" data-step="4">
+                <h3>Suggested starter budgets</h3>
+                <div class="muted">These reserve from Unallocated by default. You can edit later.</div>
+                <div id="obSuggestedBudgets" class="listy"></div>
+                <div class="hint">Use demo data adds sample budgets, transactions, and recurring bills so you can explore quickly.</div>
+            </div>
+
+            <div class="row">
+                <button id="obBack" class="btn ghost" type="button">Back</button>
+                <div class="row right">
+                    <button id="obDemo" class="btn ghost" type="button">Use demo data</button>
+                    <button id="obNext" class="btn" type="button">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <header class="topbar">
         <div class="brand">
             <div class="logo">🐰</div>
             <div>
                 <div class="title">PocketOps</div>
-                <div class="subtitle">Cute budgets • Weekly + Monthly • Offline-first</div>
+                <div class="subtitle">Cute budgets • Ops worker vibe • Offline-first</div>
             </div>
         </div>
-
         <div class="top-actions">
+            <span id="offlineBadge" class="pill">Offline-first: data stored locally</span>
             <button class="btn ghost" id="installBtn" hidden>Install</button>
-            <button class="btn" id="seedBtn" title="Add example data">Seed</button>
+            <button class="btn ghost" id="resetOnboardingBtn">Reset setup</button>
         </div>
     </header>
 
@@ -32,137 +92,84 @@
         <nav class="tabs">
             <button class="tab active" data-tab="dash">Dashboard</button>
             <button class="tab" data-tab="add">Add</button>
-            <button class="tab" data-tab="budgets">Budgets</button>
+            <button class="tab" data-tab="budgets">Add Budgets</button>
             <button class="tab" data-tab="list">Transactions</button>
-            <button class="tab" data-tab="insights">Insights</button>
+            <button class="tab" data-tab="insights">Insights / Alerts</button>
         </nav>
 
-        <!-- DASHBOARD -->
         <section class="panel tabpane" id="tab-dash">
+            <div class="card soft explainer">
+                <b>Concepts:</b> Unallocated is income not yet reserved. Projected estimates end-of-period spend pace.
+            </div>
             <div class="grid2">
                 <div class="card">
                     <div class="card-h">
                         <h2>This Week</h2>
-                        <span class="pill" id="weekRange"></span>
+                        <span id="weekRange" class="pill"></span>
                     </div>
-
                     <div class="big">
-                        <div>
-                            <div class="k">Spent</div>
-                            <div class="v" id="weekSpent">$0.00</div>
-                        </div>
-                        <div>
-                            <div class="k">Budget</div>
-                            <div class="v" id="weekBudget">$0.00</div>
-                        </div>
+                        <div><div class="k">Spent</div><div class="v" id="weekSpent">$0.00</div></div>
+                        <div><div class="k">Budget</div><div class="v" id="weekBudget">$0.00</div></div>
                     </div>
-
-                    <div class="meter">
-                        <div class="meter-bar" id="weekBar"></div>
-                    </div>
-
+                    <div class="meter"><div class="meter-bar" id="weekBar"></div></div>
                     <div class="row">
-                        <div class="mini">
-                            <div class="k">Remaining</div>
-                            <div class="v" id="weekRemain">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Projected</div>
-                            <div class="v" id="weekProj">$0.00</div>
-                        </div>
+                        <div class="mini"><div class="k">Remaining</div><div class="v" id="weekRemain">$0.00</div></div>
+                        <div class="mini"><div class="k">Projected</div><div class="v" id="weekProj">$0.00</div></div>
                     </div>
-
                     <div class="row">
-                        <div class="mini">
-                            <div class="k">Income</div>
-                            <div class="v" id="weekIncome">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Unallocated</div>
-                            <div class="v" id="weekUnalloc">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Net</div>
-                            <div class="v" id="weekNet">$0.00</div>
-                        </div>
+                        <div class="mini"><div class="k">Income</div><div class="v" id="weekIncome">$0.00</div></div>
+                        <div class="mini"><div class="k">Unallocated</div><div class="v" id="weekUnalloc">$0.00</div></div>
+                        <div class="mini"><div class="k">Net</div><div class="v" id="weekNet">$0.00</div></div>
                     </div>
                 </div>
-
                 <div class="card">
                     <div class="card-h">
                         <h2>This Month</h2>
-                        <span class="pill" id="monthRange"></span>
+                        <span id="monthRange" class="pill"></span>
                     </div>
-
                     <div class="big">
-                        <div>
-                            <div class="k">Spent</div>
-                            <div class="v" id="monthSpent">$0.00</div>
-                        </div>
-                        <div>
-                            <div class="k">Budget</div>
-                            <div class="v" id="monthBudget">$0.00</div>
-                        </div>
+                        <div><div class="k">Spent</div><div class="v" id="monthSpent">$0.00</div></div>
+                        <div><div class="k">Budget</div><div class="v" id="monthBudget">$0.00</div></div>
                     </div>
-
-                    <div class="meter">
-                        <div class="meter-bar" id="monthBar"></div>
-                    </div>
-
+                    <div class="meter"><div class="meter-bar" id="monthBar"></div></div>
                     <div class="row">
-                        <div class="mini">
-                            <div class="k">Remaining</div>
-                            <div class="v" id="monthRemain">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Projected</div>
-                            <div class="v" id="monthProj">$0.00</div>
-                        </div>
+                        <div class="mini"><div class="k">Remaining</div><div class="v" id="monthRemain">$0.00</div></div>
+                        <div class="mini"><div class="k">Projected</div><div class="v" id="monthProj">$0.00</div></div>
                     </div>
-
                     <div class="row">
-                        <div class="mini">
-                            <div class="k">Income</div>
-                            <div class="v" id="monthIncome">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Unallocated</div>
-                            <div class="v" id="monthUnalloc">$0.00</div>
-                        </div>
-                        <div class="mini">
-                            <div class="k">Net</div>
-                            <div class="v" id="monthNet">$0.00</div>
-                        </div>
+                        <div class="mini"><div class="k">Income</div><div class="v" id="monthIncome">$0.00</div></div>
+                        <div class="mini"><div class="k">Unallocated</div><div class="v" id="monthUnalloc">$0.00</div></div>
+                        <div class="mini"><div class="k">Net</div><div class="v" id="monthNet">$0.00</div></div>
                     </div>
                 </div>
             </div>
-
-            <div class="card soft">
-                <div class="card-h">
-                    <h3>Alerts</h3>
-                    <span class="muted">Your “ops worker” flags problems early</span>
+            <div class="grid2">
+                <div class="card soft">
+                    <h3>Bills reserved</h3>
+                    <div class="v" id="billsReserved">$0.00</div>
                 </div>
+                <div class="card soft">
+                    <h3>Discretionary available</h3>
+                    <div class="v" id="discretionaryAvailable">$0.00</div>
+                </div>
+            </div>
+            <div class="card soft">
+                <h3>Alerts</h3>
                 <div id="alerts" class="alerts"></div>
-            </div>
-
-            <div class="card soft">
-                <div class="card-h">
-                    <h3>Top Categories</h3>
-                    <span class="muted">This week + this month</span>
-                </div>
-                <div class="grid2" id="topCats"></div>
             </div>
         </section>
 
-        <!-- ADD -->
         <section class="panel tabpane hidden" id="tab-add">
             <div class="card">
                 <div class="card-h">
                     <h2>Add Transaction</h2>
-                    <span class="pill">Fast entry ✨</span>
+                    <span class="pill">Amount first</span>
                 </div>
-
                 <form id="txForm" class="form">
+                    <div class="form-row">
+                        <label>Amount</label>
+                        <input id="txAmount" class="input" inputmode="decimal" placeholder="e.g. 12.50" autofocus required />
+                    </div>
                     <div class="form-row">
                         <label>Type</label>
                         <select id="txType" class="input">
@@ -170,67 +177,95 @@
                             <option value="income">Income</option>
                         </select>
                     </div>
-
-                    <div class="form-row">
-                        <label>Amount</label>
-                        <input id="txAmount" class="input" inputmode="decimal" placeholder="e.g. 12.50" required />
-                    </div>
-
                     <div class="form-row">
                         <label>Merchant</label>
                         <input id="txMerchant" class="input" placeholder="e.g. Woolworths" required />
-                        <div class="hint">Tip: it learns your category choice per merchant.</div>
                     </div>
-
+                    <div class="form-row">
+                        <label>Category search</label>
+                        <input id="txCategorySearch" class="input" placeholder="Search categories..." />
+                        <div id="recentCats" class="chip-row"></div>
+                    </div>
                     <div class="form-row">
                         <label>Category</label>
                         <select id="txCategory" class="input"></select>
                     </div>
-
                     <div class="form-row">
                         <label>Date</label>
                         <input id="txDate" class="input" type="date" required />
                     </div>
-
                     <div class="form-row">
                         <label>Notes</label>
                         <input id="txNotes" class="input" placeholder="optional" />
                     </div>
-
-                    <button class="btn bigbtn" type="submit">Add 🧾</button>
+                    <div class="split-box">
+                        <label class="chip"><input id="txSplitToggle" type="checkbox" /> Split with housemates</label>
+                        <div id="splitFields" class="hidden">
+                            <div class="form-row">
+                                <label>Split type</label>
+                                <select id="txSplitType" class="input">
+                                    <option value="i_paid">I paid</option>
+                                    <option value="they_paid">They paid</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label>Split amount</label>
+                                <input id="txSplitAmount" class="input" inputmode="decimal" placeholder="e.g. 15.00" />
+                            </div>
+                            <div class="form-row">
+                                <label>Or split percentage</label>
+                                <input id="txSplitPercent" class="input" inputmode="decimal" placeholder="e.g. 50" />
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn bigbtn" id="txSubmitBtn" type="submit">Add Transaction</button>
                 </form>
             </div>
         </section>
 
-        <!-- BUDGETS -->
         <section class="panel tabpane hidden" id="tab-budgets">
             <div class="card">
                 <div class="card-h">
-                    <h2>Budgets</h2>
-                    <span class="muted">Set weekly + monthly per category</span>
+                    <h2>Add Budgets</h2>
+                    <span class="muted">Reserve from Unallocated</span>
                 </div>
-
                 <div class="budget-head">
                     <div class="muted">Category</div>
-                    <div class="muted">Weekly</div>
-                    <div class="muted">Monthly</div>
+                    <div class="muted">Per pay cycle</div>
+                    <div class="muted">Reserve</div>
                 </div>
-
                 <div id="budgetList" class="budget-list"></div>
-
                 <div class="row right">
-                    <button class="btn" id="saveBudgetsBtn">Save Budgets 💾</button>
+                    <button class="btn" id="saveBudgetsBtn">Save Budgets</button>
                 </div>
+            </div>
+
+            <div class="card">
+                <div class="card-h">
+                    <h2>Fixed Bills</h2>
+                    <span class="muted">Recurring reserves</span>
+                </div>
+                <form id="billForm" class="grid2">
+                    <input id="billName" class="input" placeholder="Bill name (Rent, Utilities...)" required />
+                    <input id="billAmount" class="input" inputmode="decimal" placeholder="Amount" required />
+                    <select id="billCycle" class="input">
+                        <option value="weekly">Weekly</option>
+                        <option value="fortnightly">Fortnightly</option>
+                        <option value="monthly" selected>Monthly</option>
+                    </select>
+                    <select id="billCategory" class="input"></select>
+                    <button class="btn" type="submit">Add Fixed Bill</button>
+                </form>
+                <div id="billList" class="listy"></div>
             </div>
         </section>
 
-        <!-- LIST -->
         <section class="panel tabpane hidden" id="tab-list">
             <div class="card">
                 <div class="card-h">
                     <h2>Transactions</h2>
                     <div class="filters">
-                        <input id="searchTx" class="input" placeholder="Search merchant / category…" />
+                        <input id="searchTx" class="input" placeholder="Search merchant / category..." />
                         <select id="rangeTx" class="input">
                             <option value="week" selected>This week</option>
                             <option value="month">This month</option>
@@ -238,47 +273,73 @@
                         </select>
                     </div>
                 </div>
-
                 <div id="txList" class="tx-list"></div>
+            </div>
+
+            <div class="grid2">
+                <div class="card soft">
+                    <h3>Split summary</h3>
+                    <div id="splitsCard"></div>
+                </div>
+                <div class="card soft">
+                    <h3>Spending coach</h3>
+                    <div id="coachCard"></div>
+                </div>
             </div>
         </section>
 
-        <!-- INSIGHTS -->
         <section class="panel tabpane hidden" id="tab-insights">
-            <div class="card">
-                <div class="card-h">
-                    <h2>Insights</h2>
-                    <span class="muted">Your little finance worker 🐰📈</span>
-                </div>
-
-                <div class="grid2">
-                    <div class="card soft">
-                        <h3>Subscription candidates</h3>
-                        <div class="muted">Repeats with similar amounts</div>
-                        <div id="subs" class="listy"></div>
-                    </div>
-
-                    <div class="card soft">
-                        <h3>Spend spikes</h3>
-                        <div class="muted">This week vs 4-week average</div>
-                        <div id="spikes" class="listy"></div>
-                    </div>
-                </div>
-
+            <div class="grid2">
                 <div class="card soft">
-                    <h3>Export</h3>
-                    <div class="muted">Download CSV of all transactions</div>
-                    <button class="btn" id="exportBtn">Export CSV</button>
+                    <h3>Subscription candidates</h3>
+                    <div class="muted">Mark repeats as recurring bills.</div>
+                    <div id="subs" class="listy"></div>
                 </div>
+                <div class="card soft">
+                    <h3>Spend spikes</h3>
+                    <div class="muted">This week vs 4-week average and top causes.</div>
+                    <div id="spikes" class="listy"></div>
+                </div>
+            </div>
+
+            <div class="card soft">
+                <h3>Alerts</h3>
+                <div id="insightAlerts" class="alerts"></div>
+            </div>
+
+            <div class="card soft">
+                <h3>Export / Restore</h3>
+                <div class="row">
+                    <button class="btn" id="exportBtn">Export CSV</button>
+                    <button class="btn" id="exportJsonBtn">Export JSON</button>
+                    <label class="btn ghost" for="importJsonInput">Import JSON</label>
+                    <input id="importJsonInput" type="file" accept="application/json" class="hidden" />
+                </div>
+                <div id="importStatus" class="muted"></div>
+            </div>
+
+            <div class="card soft">
+                <h3>Local PIN lock</h3>
+                <div class="muted">Stores only a local hash. If enabled, this device asks for PIN on app load.</div>
+                <form id="pinForm" class="row">
+                    <input id="pinInput" class="input" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" />
+                    <button id="pinEnableBtn" class="btn" type="submit">Enable PIN</button>
+                    <button id="pinDisableBtn" class="btn ghost" type="button">Disable PIN</button>
+                </form>
             </div>
         </section>
     </main>
 
+    <button id="quickAddBtn" class="quick-add">+</button>
+    <div id="toast" class="toast hidden">
+        <span id="toastMsg"></span>
+        <button id="toastUndo" class="btn ghost">Undo</button>
+    </div>
+
     <footer class="footer">
-        <span class="muted">Offline-first • Data stays on your device</span>
+        <span class="muted">Offline-first • Data remains on this device by default.</span>
     </footer>
 
     <script type="module" src="/app.js"></script>
 </body>
-
 </html>

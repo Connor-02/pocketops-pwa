@@ -1,11 +1,12 @@
-const CACHE_NAME = "pocketops-v2";
+const CACHE_NAME = "pocketops-v3";
 const ASSETS = [
     "/",
     "/index.html",
     "/styles.css",
     "/app.js",
     "/db.js",
-    "/worker.js",
+    "/calculations.js",
+    "/import-export.js",
     "/manifest.json",
     "/icons/icon-192.png",
     "/icons/icon-512.png"
@@ -28,7 +29,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
     const req = event.request;
 
-    // Network-first for navigation, cache-first for assets
+    // Navigation: network first. Assets: cache first.
     if (req.mode === "navigate") {
         event.respondWith(
             fetch(req).then(res => {
