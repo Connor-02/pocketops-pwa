@@ -226,7 +226,27 @@ function renderCustomCategories() {
   custom.forEach(c => {
     const div = document.createElement("div");
     div.className = "item";
-    div.innerHTML = `<b>${c.emoji || "✨"} ${c.label}</b><div class="muted">Key: ${c.key}</div><button class="btn ghost" data-del-cat="${c.key}">Delete</button>`;
+    div.innerHTML = `
+      <b>${c.emoji || "✨"} ${c.label}</b>
+      <div class="muted">Key: ${c.key}</div>
+      <div class="row">
+        <input class="input" data-edit-name="${c.key}" value="${c.label}" />
+        <input class="input" data-edit-emoji="${c.key}" value="${c.emoji || "✨"}" maxlength="2" />
+      </div>
+      <div class="row right">
+        <button class="btn" data-save-cat="${c.key}">Save</button>
+        <button class="btn ghost" data-del-cat="${c.key}">Delete</button>
+      </div>
+    `;
+    div.querySelector(`[data-save-cat="${c.key}"]`).addEventListener("click", async () => {
+      const nextName = (div.querySelector(`[data-edit-name="${c.key}"]`)?.value || "").trim();
+      const nextEmoji = (div.querySelector(`[data-edit-emoji="${c.key}"]`)?.value || "").trim() || "✨";
+      if (!nextName) return alert("Category name cannot be empty.");
+      const nextCustom = custom.map(x => x.key === c.key ? { ...x, label: nextName, emoji: nextEmoji } : x);
+      appState = await saveAppState({ customCategories: nextCustom });
+      showToast(`Category "${nextName}" updated.`, null);
+      await loadStateAndRender();
+    });
     div.querySelector(`[data-del-cat="${c.key}"]`).addEventListener("click", async () => {
       if (!confirm(`Delete category "${c.label}"? Existing transactions/bills will move to Other.`)) return;
 
@@ -460,6 +480,10 @@ async function completeOnboarding(useDemo) {
   const payCycle = document.querySelector('input[name="payCycle"]:checked')?.value || "fortnightly";
   const income = dollarsToCents(obIncome.value || "0") || 0;
   const paydayISO = obPayday.value || "";
+  // Read current visible inputs directly so the final typed value is always captured.
+  obSuggestedBudgets.querySelectorAll("input[data-ob-budget]").forEach(inp => {
+    onboardingBudgetDraft[inp.dataset.obBudget] = inp.value.trim();
+  });
   appState = await saveAppState({ onboardingCompleted: true, payCycle, paydayISO, incomePerCycleCents: income, customCategories: onboardingNames });
   const suggested = suggestedStarterBudgets(income, payCycle, onboardingNames);
   const onboardingBudgets = suggested.map(row => {
