@@ -16,6 +16,7 @@ Offline-first budgeting PWA for uni/post-grad users. Data is stored locally on-d
 - Spend guardrails (75% / 100%), spike explanations, and coaching insight card.
 - Versioned local schema and modular calculation engine using integer cents.
 - Simplified dashboard: weekly/monthly segmented view, Remaining as hero metric, collapsible advanced details, compact conditional alerts, and combined "Available to Spend" card.
+- Professional dashboard theme: neutral token system, stronger typography hierarchy, cleaner spacing, and details/period preferences persisted locally.
 
 ## Local Run
 1. Use any static file server at repo root.
@@ -57,3 +58,4 @@ npm test
 - Added schema versioning and modular calculations.
 - Added basic unit tests for calculations + import validation.
 - Redesigned dashboard for clarity: single-period toggle, hero Remaining, advanced metrics collapse, hidden-empty alerts, and modular render functions.
+- Applied enterprise visual refresh for dashboard and app shell: neutral palette, restrained components, accessible contrast, and structured alert presentation.

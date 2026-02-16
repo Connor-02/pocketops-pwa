@@ -53,8 +53,9 @@ let deferredPrompt = null;
 let categoryModalMode = "add";
 let categoryModalKey = "";
 const DASHBOARD_VIEW_KEY = "pocketops.dashboardView";
+const DASHBOARD_DETAILS_KEY = "pocketops.dashboardDetailsOpen";
 let dashboardView = localStorage.getItem(DASHBOARD_VIEW_KEY) === "month" ? "month" : "week";
-let dashboardDetailsOpen = false;
+let dashboardDetailsOpen = localStorage.getItem(DASHBOARD_DETAILS_KEY) === "true";
 let dashboardPeriodCache = { week: null, month: null };
 
 const tabBtns = $$(".tab"), panes = $$(".tabpane");
@@ -95,6 +96,7 @@ dashPeriodWeeklyBtn?.addEventListener("click", () => setDashboardView("week"));
 dashPeriodMonthlyBtn?.addEventListener("click", () => setDashboardView("month"));
 periodDetailsToggleBtn?.addEventListener("click", () => {
   dashboardDetailsOpen = !dashboardDetailsOpen;
+  localStorage.setItem(DASHBOARD_DETAILS_KEY, String(dashboardDetailsOpen));
   periodDetailsPanel?.classList.toggle("open", dashboardDetailsOpen);
   periodDetailsToggleBtn.textContent = dashboardDetailsOpen ? "Hide details ▲" : "Show details ▼";
   periodDetailsToggleBtn.setAttribute("aria-expanded", String(dashboardDetailsOpen));
@@ -105,7 +107,17 @@ window.addEventListener("online", updateOfflineBadge); window.addEventListener("
 const meterWidth = (s, b) => b <= 0 ? 0 : Math.min(100, Math.round((s / b) * 100));
 const fmtRange = (s, e) => `${s.toLocaleDateString()} -> ${e.toLocaleDateString()}`;
 const catMeta = (key) => categories.find(c => c.key === key) || { key, label: key, emoji: "?" };
-const makeAlert = (type, msg) => { const d = document.createElement("div"); d.className = `alert ${type}`; d.textContent = msg; return d; };
+const makeAlert = (type, msg) => {
+  const div = document.createElement("div");
+  div.className = `alert ${type}`;
+  const typeTitle = type === "bad" ? "Action needed" : type === "warn" ? "Heads up" : "Update";
+  const text = String(msg || "").trim();
+  const splitAt = text.indexOf(". ");
+  const title = splitAt > 0 ? text.slice(0, splitAt + 1) : typeTitle;
+  const desc = splitAt > 0 ? text.slice(splitAt + 2) : text;
+  div.innerHTML = `<div class="alert-title">${title}</div><div class="alert-desc">${desc || typeTitle}</div>`;
+  return div;
+};
 const hashText = async (t) => { const data = new TextEncoder().encode(t); const h = await crypto.subtle.digest("SHA-256", data); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join(""); };
 const escapeCsv = (v) => { const s = String(v || ""); return /[,"\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s; };
 const downloadBlob = (content, type, filename) => { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); };
