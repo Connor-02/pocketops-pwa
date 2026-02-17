@@ -38,7 +38,9 @@ test("dashboard period applies overspend to unallocated", () => {
     assert.equal(result.income, 100000);
     assert.equal(result.budget, 10000);
     assert.equal(result.spent, 15000);
+    assert.equal(result.net, 85000);
     assert.equal(result.unallocated, 85000);
+    assert.equal(result.discretionaryAvailable, 85000);
     assert.equal(result.alerts.length, 1);
 });
 
@@ -52,4 +54,21 @@ test("scheduled income is counted from last payday anchor", () => {
         useScheduledIncome: true
     });
     assert.equal(income, 50000); // next Friday in this week
+});
+
+test("discretionary available is post-budget availability", () => {
+    const result = calculateDashboardPeriod({
+        transactions: [
+            { type: "income", amountCents: 100000, date: "2026-02-10" },
+            { type: "expense", amountCents: 10000, category: "food", date: "2026-02-10" }
+        ],
+        budgets: [{ category: "food", cycleBudgetCents: 50000, reserveFromUnallocated: true }],
+        bills: [],
+        appState: { payCycle: "weekly", customCategories: [{ key: "food", label: "Food", emoji: "x" }] },
+        nowDate: new Date("2026-02-12"),
+        period: "week"
+    });
+    assert.equal(result.unallocated, 50000);
+    assert.equal(result.discretionaryAvailable, 50000);
+    assert.equal(result.net, 90000);
 });

@@ -297,9 +297,9 @@ export function calculateDashboardPeriod({
         ? Math.max(1, Math.floor((new Date().setHours(0, 0, 0, 0) - start.getTime()) / (24 * 3600 * 1000)) + 1)
         : Math.max(1, now.getDate());
     const projected = projection(spent, elapsedDays, totalDays);
-    const net = totals.net;
+    const net = income - spent;
     const unallocated = income - budgetTotal - overspendFromUnallocated;
-    const discretionaryAvailable = income - billsReserved - overspendFromUnallocated;
+    const discretionaryAvailable = unallocated;
 
     return {
         rangeStart: start,
